@@ -1,8 +1,11 @@
 import {OnTriggerEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
-import {ResponseRule, getRules} from "./config.js";
+import {ResponseRule, parseRules} from "./config.js";
 import {Duration, add} from "date-fns";
-import {isBanned, isContributor, isModerator, stringOrStringArrayToStringArray} from "./utility.js";
+import {isBanned, isContributor, isModerator} from "./utility.js";
+
+export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
+export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
 
 export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, context: TriggerContext) {
     console.log("Received modmail trigger event.");
@@ -57,7 +60,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     const subreddit = await context.reddit.getCurrentSubreddit();
 
     const rulesYaml = await context.settings.get<string>("rules");
-    const rules = getRules(rulesYaml);
+    const rules = parseRules(rulesYaml);
 
     let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant)));
 
@@ -100,41 +103,29 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 }
 
 async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined): Promise<ResponseRule | undefined> {
-    if (rule.subject) {
-        const valuesToCheck = stringOrStringArrayToStringArray(rule.subject);
-        if (valuesToCheck && !valuesToCheck.some(val => subject.includes(val))) {
-            console.log("Subject does not match.");
-            return;
-        }
+    if (rule.subject && !rule.subject.some(val => subject.includes(val))) {
+        console.log("Subject does not match.");
+        return;
     }
 
     if (rule.subject_regex) {
-        const valuesToCheck = stringOrStringArrayToStringArray(rule.subject_regex);
-        if (valuesToCheck) {
-            const regexes = valuesToCheck.map(x => new RegExp(x));
-            if (!regexes.some(x => x.test(subject))) {
-                console.log("Subject regex does not match");
-                return;
-            }
-        }
-    }
-
-    if (rule.body) {
-        const valuesToCheck = stringOrStringArrayToStringArray(rule.body);
-        if (valuesToCheck && !valuesToCheck.some(val => body.includes(val))) {
-            console.log("Body does not match.");
+        const regexes = rule.subject_regex.map(x => new RegExp(x));
+        if (!regexes.some(x => x.test(subject))) {
+            console.log("Subject regex does not match");
             return;
         }
     }
 
+    if (rule.body && !rule.body.some(val => body.includes(val))) {
+        console.log("Body does not match.");
+        return;
+    }
+
     if (rule.body_regex) {
-        const valuesToCheck = stringOrStringArrayToStringArray(rule.body_regex);
-        if (valuesToCheck) {
-            const regexes = valuesToCheck.map(x => new RegExp(x));
-            if (!regexes.some(x => x.test(body))) {
-                console.log("Body regex does not match");
-                return;
-            }
+        const regexes = rule.body_regex.map(x => new RegExp(x));
+        if (!regexes.some(x => x.test(body))) {
+            console.log("Body regex does not match");
+            return;
         }
     }
 
@@ -200,13 +191,9 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
     }
 
     if (rule.mod_action) {
-        const moderators = stringOrStringArrayToStringArray(rule.mod_action.moderator_name);
-
-        console.log(moderators);
-
         let modLog = await context.reddit.getModerationLog({
             subredditName: subreddit.name,
-            moderatorUsernames: moderators,
+            moderatorUsernames: rule.mod_action.moderator_name,
             limit: 100,
         }).all();
 
@@ -218,11 +205,8 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
 
         if (rule.mod_action.action_reason) {
-            const reasons = stringOrStringArrayToStringArray(rule.mod_action.action_reason);
-            if (reasons) {
-                modLog = modLog.filter(logEntry => !reasons.some(reason => `${logEntry.details ?? ""} ${logEntry.description ?? ""}`.toLowerCase().includes(reason)));
-                console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
-            }
+            modLog = modLog.filter(logEntry => !rule.mod_action?.action_reason?.some(reason => `${logEntry.details ?? ""} ${logEntry.description ?? ""}`.toLowerCase().includes(reason)));
+            console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 
         if (modLog.length === 0) {
@@ -235,7 +219,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
 }
 
 function meetsNumericThreshold (input: number, threshold: string): boolean {
-    const regex = /^(<|>|<=|>=|=)?\s?(\d+)$/;
+    const regex = new RegExp(numericComparatorPattern);
     const matches = threshold.match(regex);
     if (!matches || matches.length !== 3) {
         return false;
@@ -262,7 +246,7 @@ function meetsNumericThreshold (input: number, threshold: string): boolean {
 }
 
 function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: string): boolean {
-    const regex = /^(<|>|<=|>=)?\s?(\d+)\s(minutes|hours|days|weeks|months|years)$/;
+    const regex = new RegExp(dateComparatorPattern);
     const matches = threshold.match(regex);
     if (!matches || matches.length !== 4) {
         return false;
@@ -277,22 +261,22 @@ function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: s
 
     let duration: Duration | undefined;
     switch (interval) {
-        case "minutes":
+        case "minute":
             duration = {minutes: value};
             break;
-        case "hours":
+        case "hour":
             duration = {hours: value};
             break;
-        case "days":
+        case "day":
             duration = {days: value};
             break;
-        case "weeks":
+        case "week":
             duration = {weeks: value};
             break;
-        case "months":
+        case "month":
             duration = {months: value};
             break;
-        case "years":
+        case "year":
             duration = {years: value};
             break;
     }

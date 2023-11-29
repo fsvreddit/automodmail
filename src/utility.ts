@@ -14,23 +14,3 @@ export async function isBanned (context: TriggerContext, subredditName: string, 
     const bannedList = await context.reddit.getBannedUsers({subredditName, username}).all();
     return bannedList.length > 0;
 }
-
-export function stringOrStringArrayToStringArray (input: string | string[] | undefined): string[] | undefined {
-    let result: string[] | undefined;
-
-    if (!input) {
-        return;
-    }
-
-    if (typeof input === "string") {
-        result = [input];
-    } else {
-        result = input;
-    }
-
-    if (result.length === 0) {
-        return;
-    }
-
-    return result;
-}

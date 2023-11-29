@@ -1,11 +1,13 @@
+/* eslint-disable camelcase */
 import {parseAllDocuments} from "yaml";
-import {stringOrStringArrayToStringArray} from "./utility.js";
+import Ajv, {JSONSchemaType} from "ajv";
+import {dateComparatorPattern, numericComparatorPattern} from "./autoresponder.js";
 
 export interface ResponseRule {
-    subject?: string | string[],
-    subject_regex?: string | string[],
-    body?: string | string[],
-    body_regex?: string | string[],
+    subject?: string[],
+    subject_regex?: string[],
+    body?: string[],
+    body_regex?: string[],
     author?: {
         post_karma?: string,
         comment_karma?: string,
@@ -18,9 +20,9 @@ export interface ResponseRule {
         is_banned?: boolean
     },
     mod_action?: {
-        moderator_name?: string | string[],
+        moderator_name?: string[],
         action_within?: string,
-        action_reason?: string | string[],
+        action_reason?: string[],
     },
     priority?: number,
     reply?: string,
@@ -28,7 +30,51 @@ export interface ResponseRule {
     archive?: boolean,
 }
 
-export function getRules (rules?: string): ResponseRule[] {
+const schema: JSONSchemaType<ResponseRule[]> = {
+    type: "array",
+    items: {
+        type: "object",
+        properties: {
+            subject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            subject_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            body: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            body_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            author: {
+                type: "object",
+                properties: {
+                    post_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
+                    comment_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
+                    combined_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
+                    account_age: {type: "string", nullable: true, pattern: dateComparatorPattern},
+                    satisfy_any_threshold: {type: "boolean", nullable: true},
+                    is_contributor: {type: "boolean", nullable: true},
+                    is_moderator: {type: "boolean", nullable: true},
+                    is_shadowbanned: {type: "boolean", nullable: true},
+                    is_banned: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
+            mod_action: {
+                type: "object",
+                properties: {
+                    moderator_name: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    action_within: {type: "string", nullable: true, pattern: dateComparatorPattern},
+                    action_reason: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
+            priority: {type: "integer", nullable: true},
+            reply: {type: "string", nullable: true},
+            mute: {type: "integer", nullable: true},
+            archive: {type: "boolean", nullable: true},
+        },
+        additionalProperties: false,
+    },
+};
+
+export function parseRules (rules?: string): ResponseRule[] {
     if (!rules) {
         return [];
     }
@@ -37,7 +83,40 @@ export function getRules (rules?: string): ResponseRule[] {
         strict: true,
     });
 
-    return documents.map(x => x.toJSON() as ResponseRule).filter(x => x !== null);
+    const parsedRules = documents.map(x => x.toJSON() as ResponseRule).filter(x => x !== null);
+
+    const ajv = new Ajv.default({
+        coerceTypes: "array",
+    });
+
+    try {
+        const validate = ajv.compile(schema);
+
+        if (!validate(parsedRules)) {
+            console.log(ajv.errorsText(validate.errors));
+            throw new Error(ajv.errorsText(validate.errors));
+        }
+
+        for (const rule of parsedRules) {
+            const checkInvalid = validateRule(rule);
+            if (checkInvalid) {
+                throw new Error(checkInvalid);
+            }
+        }
+
+        return parsedRules;
+    } catch (e) {
+        if (e instanceof Error) {
+            // See if we can humanise the errors
+            if (e.message.includes("must NOT have additional properties")) {
+                throw new Error(e.message.replace("must NOT have additional properties", "has unknown keys"));
+            } else {
+                throw e;
+            }
+        } else {
+            throw e;
+        }
+    }
 }
 
 export function validateRule (rule: ResponseRule): string {
@@ -47,9 +126,8 @@ export function validateRule (rule: ResponseRule): string {
 
     if (rule.body_regex) {
         try {
-            const valuesToCheck = stringOrStringArrayToStringArray(rule.body_regex);
-            if (valuesToCheck) {
-                valuesToCheck.map(x => new RegExp(x));
+            if (rule.body_regex) {
+                rule.body_regex.map(x => new RegExp(x));
             }
         } catch {
             return "Invalid body regex";
@@ -58,9 +136,8 @@ export function validateRule (rule: ResponseRule): string {
 
     if (rule.subject_regex) {
         try {
-            const valuesToCheck = stringOrStringArrayToStringArray(rule.subject_regex);
-            if (valuesToCheck) {
-                valuesToCheck.map(x => new RegExp(x));
+            if (rule.subject_regex) {
+                rule.subject_regex.map(x => new RegExp(x));
             }
         } catch {
             return "Invalid subject regex";

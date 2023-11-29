@@ -1,6 +1,6 @@
 import {Devvit} from "@devvit/public-api";
 import {onModmailReceiveEvent} from "./autoresponder.js";
-import {getRules, validateRule} from "./config.js";
+import {parseRules} from "./config.js";
 
 Devvit.addSettings([
     {
@@ -9,11 +9,13 @@ Devvit.addSettings([
         label: "Enter YAML autoresponse rules",
         onValidate: ({value}) => {
             try {
-                const rules = getRules(value);
-                const issues = rules.map(rule => validateRule(rule));
-                return issues.find(x => x);
-            } catch {
-                return "Could not parse YAML. Please check.";
+                parseRules(value);
+            } catch (error) {
+                if (error instanceof Error) {
+                    return `Error parsing rules: ${error.message}`;
+                } else {
+                    return "Error parsing rules";
+                }
             }
         },
     },

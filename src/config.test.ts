@@ -119,7 +119,7 @@ test("Date comparator valid", () => {
     const input = `---
 subject: Hello
 author:
-    account_age: "> 1 years"
+    account_age: "15 minutes"
 mute: 28
 ---`;
 
@@ -130,7 +130,35 @@ test("Date comparator invalid", () => {
     const input = `---
 subject: Hello
 author:
-    account_age: "boot"
+    account_age: "15 minues"
+mute: 28
+---`;
+
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).toThrow();
+});
+
+test("Real Mod Action", () => {
+    const input = `---
+subject: Hello
+mod_action:
+    mod_action_type: "banuser"
+    action_within: "15 minutes"
+mute: 28
+---`;
+
+    parseRules(input);
+});
+
+test("Real Mod Action", () => {
+    const input = `---
+subject: Hello
+mod_action:
+    mod_action_type: "huguser"
+    action_within: "15 minutes"
 mute: 28
 ---`;
 

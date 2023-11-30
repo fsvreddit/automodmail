@@ -103,7 +103,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 }
 
 async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined): Promise<ResponseRule | undefined> {
-    if (rule.subject && !rule.subject.some(val => subject.includes(val))) {
+    if (rule.subject && !rule.subject.some(val => subject.toLowerCase().includes(val.toLowerCase()))) {
         console.log("Subject does not match.");
         return;
     }
@@ -116,7 +116,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
     }
 
-    if (rule.body && !rule.body.some(val => body.includes(val))) {
+    if (rule.body && !rule.body.some(val => body.toLowerCase().includes(val.toLowerCase()))) {
         console.log("Body does not match.");
         return;
     }
@@ -180,6 +180,24 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                     return;
                 }
             }
+
+            if (rule.author.flair_text || rule.author.flair_css_class || rule.author.flair_css_class) {
+                const flair = await participant.getUserFlairBySubreddit(subreddit.name);
+                if (!flair) {
+                    console.log("User does not have flair, but flair checks exist. Skipping rule.");
+                    return;
+                }
+
+                if (rule.author.flair_text && rule.author.flair_text !== flair.flairText) {
+                    console.log("Flair text check failed. Skipping rule.");
+                    return;
+                }
+
+                if (rule.author.flair_css_class && rule.author.flair_css_class !== flair.flairCssClass) {
+                    console.log("Flair text check failed. Skipping rule.");
+                    return;
+                }
+            }
         }
 
         if (rule.author.is_shadowbanned !== undefined) {
@@ -194,6 +212,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         let modLog = await context.reddit.getModerationLog({
             subredditName: subreddit.name,
             moderatorUsernames: rule.mod_action.moderator_name,
+            type: rule.mod_action.mod_action_type,
             limit: 100,
         }).all();
 
@@ -205,7 +224,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
 
         if (rule.mod_action.action_reason) {
-            modLog = modLog.filter(logEntry => !rule.mod_action?.action_reason?.some(reason => `${logEntry.details ?? ""} ${logEntry.description ?? ""}`.toLowerCase().includes(reason)));
+            modLog = modLog.filter(logEntry => !rule.mod_action?.action_reason?.some(reason => `${logEntry.details ?? ""} ${logEntry.description ?? ""}`.toLowerCase().includes(reason.toLowerCase())));
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 

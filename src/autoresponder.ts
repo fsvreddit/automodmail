@@ -9,6 +9,7 @@ export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day
 
 export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, context: TriggerContext) {
     console.log("Received modmail trigger event.");
+    console.log(`Event Message ID: ${event.messageId}`);
 
     if (!event.messageAuthor) {
         return;
@@ -40,9 +41,13 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 
     const messagesInConversation = Object.values(conversationResponse.conversation.messages);
 
-    // Check that there's no other messages from the author!
-    if (messagesInConversation.filter(msg => msg.author && msg.author.isOp).length > 1) {
-        console.log("Not the first message from this user in the chain. Quitting");
+    const firstMessage = messagesInConversation[0];
+    console.log(`First Message ID: ${firstMessage.id ?? "undefined"}`);
+
+    // Check that the first message in the entire conversation was for this person.
+    if (!firstMessage.id || !event.messageId.includes(firstMessage.id)) {
+        console.log("Message isn't the very first. Quitting");
+        return;
     }
 
     let participant: User | undefined;
@@ -52,8 +57,6 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     } catch {
         // Ignore - leave participant variable undefined.
     }
-
-    const firstMessage = messagesInConversation[0];
 
     const subject = conversationResponse.conversation.subject ?? "";
     const body = firstMessage.bodyMarkdown ?? "";
@@ -72,6 +75,8 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         return;
     }
 
+    console.log("Matched a rule.");
+
     const firstMatchedRule = matchedRules[0] as ResponseRule;
 
     if (firstMatchedRule.reply) {
@@ -88,6 +93,8 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
             isInternal: false,
             isAuthorHidden: true,
         });
+
+        console.log("Replied to modmail");
     }
 
     if (firstMatchedRule.mute) {
@@ -95,10 +102,12 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
             conversationId: event.conversationId,
             numHours: firstMatchedRule.mute * 24,
         });
+        console.log("User muted");
     }
 
     if (firstMatchedRule.archive) {
         await context.reddit.modMail.archiveConversation(event.conversationId);
+        console.log("Conversation archived");
     }
 }
 

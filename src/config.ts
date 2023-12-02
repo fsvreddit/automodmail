@@ -161,5 +161,9 @@ export function validateRule (rule: ResponseRule): string {
         return "You can only specify one of: subject, subject_regex";
     }
 
+    if (rule.mod_action && !rule.mod_action.mod_action_type && !rule.mod_action.action_reason) {
+        return "When specifying a mod action, you must have an action type or action reason or both defined.";
+    }
+
     return "";
 }

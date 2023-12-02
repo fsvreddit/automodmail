@@ -1,11 +1,22 @@
 import {OnTriggerEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, parseRules} from "./config.js";
-import {Duration, add} from "date-fns";
-import {isBanned, isContributor, isModerator} from "./utility.js";
+import {Duration, add, formatDistanceToNow} from "date-fns";
+import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
+
+interface RuleMatchContext {
+    ruleMatched: boolean,
+    priority: number,
+    reply?: string,
+    mute?: number,
+    archive?: boolean,
+    modActionDate?: Date,
+    modActionTargetPermalink?: string
+    modActionTargetKind?: string
+}
 
 export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, context: TriggerContext) {
     console.log("Received modmail trigger event.");
@@ -68,7 +79,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant)));
 
     // Sort by priority descending, take top 1.
-    matchedRules = matchedRules.filter(x => x !== undefined).sort((a, b) => (b?.priority ?? 0) - (a?.priority ?? 0));
+    matchedRules = matchedRules.filter(x => x.ruleMatched).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
     if (matchedRules.length === 0) {
         console.log("No rules matched.");
@@ -77,7 +88,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 
     console.log("Matched a rule.");
 
-    const firstMatchedRule = matchedRules[0] as ResponseRule;
+    const firstMatchedRule = matchedRules[0];
 
     if (firstMatchedRule.reply) {
         let replyMessage = firstMatchedRule.reply;
@@ -85,6 +96,18 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         const signoff = await context.settings.get<string>("signoff");
         if (signoff) {
             replyMessage += `\n\n${signoff}`;
+        }
+
+        replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
+        replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
+        if (firstMatchedRule.modActionDate) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(firstMatchedRule.modActionDate));
+        }
+        if (firstMatchedRule.modActionTargetPermalink) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", firstMatchedRule.modActionTargetPermalink);
+        }
+        if (firstMatchedRule.modActionTargetKind) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", firstMatchedRule.modActionTargetKind);
         }
 
         await context.reddit.modMail.reply({
@@ -111,30 +134,38 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     }
 }
 
-async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined): Promise<ResponseRule | undefined> {
+async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined): Promise<RuleMatchContext> {
+    const result: RuleMatchContext = {
+        ruleMatched: false,
+        priority: rule.priority ?? 0,
+        reply: rule.reply,
+        mute: rule.mute,
+        archive: rule.archive,
+    };
+
     if (rule.subject && !rule.subject.some(val => subject.toLowerCase().includes(val.toLowerCase()))) {
         console.log("Subject does not match.");
-        return;
+        return result;
     }
 
     if (rule.subject_regex) {
         const regexes = rule.subject_regex.map(x => new RegExp(x));
         if (!regexes.some(x => x.test(subject))) {
             console.log("Subject regex does not match");
-            return;
+            return result;
         }
     }
 
     if (rule.body && !rule.body.some(val => body.toLowerCase().includes(val.toLowerCase()))) {
         console.log("Body does not match.");
-        return;
+        return result;
     }
 
     if (rule.body_regex) {
         const regexes = rule.body_regex.map(x => new RegExp(x));
         if (!regexes.some(x => x.test(body))) {
             console.log("Body regex does not match");
-            return;
+            return result;
         }
     }
 
@@ -159,10 +190,10 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 // Satisfy Any Threshold: If no check came back true, quit.
                 if (rule.author.satisfy_any_threshold && !thresholdChecks.includes(true)) {
                     console.log("Satisfy Any Threshold: No threshold checks passed.");
-                    return;
+                    return result;
                 } else if (!rule.author.satisfy_any_threshold && thresholdChecks.includes(false)) {
                     console.log("Satisfy Any Threshold: Not all threshold checks passed.");
-                    return;
+                    return result;
                 }
             }
 
@@ -170,7 +201,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 const userIsBanned = await isBanned(context, subreddit.name, participant.username);
                 if (rule.author.is_banned !== userIsBanned) {
                     console.log("User banned check failed, skipping rule.");
-                    return;
+                    return result;
                 }
             }
 
@@ -178,7 +209,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 const userIsContributor = await isContributor(context, subreddit.name, participant.username);
                 if (rule.author.is_contributor !== userIsContributor) {
                     console.log("Contributor check failed, skipping rule.");
-                    return;
+                    return result;
                 }
             }
 
@@ -186,7 +217,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 const userIsModerator = await isModerator(context, subreddit.name, participant.username);
                 if (rule.author.is_moderator !== userIsModerator) {
                     console.log("Moderator check failed, skipping rule.");
-                    return;
+                    return result;
                 }
             }
 
@@ -194,17 +225,17 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 const flair = await participant.getUserFlairBySubreddit(subreddit.name);
                 if (!flair) {
                     console.log("User does not have flair, but flair checks exist. Skipping rule.");
-                    return;
+                    return result;
                 }
 
                 if (rule.author.flair_text && rule.author.flair_text !== flair.flairText) {
                     console.log("Flair text check failed. Skipping rule.");
-                    return;
+                    return result;
                 }
 
                 if (rule.author.flair_css_class && rule.author.flair_css_class !== flair.flairCssClass) {
                     console.log("Flair text check failed. Skipping rule.");
-                    return;
+                    return result;
                 }
             }
         }
@@ -212,20 +243,22 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         if (rule.author.is_shadowbanned !== undefined) {
             if (rule.author.is_shadowbanned !== (participant === undefined)) {
                 console.log("Shadowban check failed, skipping rule.");
-                return;
+                return result;
             }
         }
     }
 
-    if (rule.mod_action) {
+    if (rule.mod_action && participant) {
         let modLog = await context.reddit.getModerationLog({
             subredditName: subreddit.name,
             moderatorUsernames: rule.mod_action.moderator_name,
             type: rule.mod_action.mod_action_type,
-            limit: 100,
+            limit: 200,
         }).all();
 
         console.log(modLog.length);
+
+        modLog = modLog.filter(x => x.target && x.target.author === participant.username);
 
         if (rule.mod_action.action_within) {
             modLog = modLog.filter(x => rule.mod_action && rule.mod_action.action_within && meetsDateThreshold(x.createdAt, rule.mod_action.action_within, ">"));
@@ -239,11 +272,24 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
 
         if (modLog.length === 0) {
             console.log("No matching mod log entry!");
-            return;
+            return result;
+        }
+
+        result.modActionDate = modLog[0].createdAt;
+        if (modLog[0].target) {
+            result.modActionTargetPermalink = modLog[0].target.permalink;
+            if (modLog[0].target.id.startsWith("t1")) {
+                result.modActionTargetKind = "comment";
+            } else if (modLog[0].target.id.startsWith("t3")) {
+                result.modActionTargetKind = "post";
+            }
         }
     }
 
-    return rule;
+    // All checks passed.
+    result.ruleMatched = true;
+
+    return result;
 }
 
 function meetsNumericThreshold (input: number, threshold: string): boolean {

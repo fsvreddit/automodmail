@@ -14,3 +14,7 @@ export async function isBanned (context: TriggerContext, subredditName: string, 
     const bannedList = await context.reddit.getBannedUsers({subredditName, username}).all();
     return bannedList.length > 0;
 }
+
+export function replaceAll (input: string, pattern: string, replacement: string): string {
+    return input.split(pattern).join(replacement);
+}

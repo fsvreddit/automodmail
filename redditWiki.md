@@ -4,7 +4,7 @@ Like AutoModerator, just for modmail.
 
 This app allows subreddit moderators to define rules using YAML to autorespond to incoming modmails, and optionally archive the modmail afterwards. 
 
-The intended use case in most cases is as a "first line" response to common questions, with users invited to reply and ask for more assistance if the autoresponder doesn't answer their question.
+The intended use case in most cases is as a "first line" response to common questions, with users invited to reply and ask for more assistance if the autoresponder doesn't answer their question. This app will only ever respond to the first modmail in the chain.
 
 The app supports a wide variety of different checks on three main categories of data: The modmail itself (subject and body), account properties (including age and karma) and recent mod actions made against the user.
 

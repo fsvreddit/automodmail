@@ -148,9 +148,22 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         return result;
     }
 
+    if (rule.notsubject && rule.notsubject.some(val => subject.toLowerCase().includes(val.toLowerCase()))) {
+        console.log("~Subject does not match.");
+        return result;
+    }
+
     if (rule.subject_regex) {
         const regexes = rule.subject_regex.map(x => new RegExp(x));
         if (!regexes.some(x => x.test(subject))) {
+            console.log("Subject regex does not match");
+            return result;
+        }
+    }
+
+    if (rule.notsubject_regex) {
+        const regexes = rule.notsubject_regex.map(x => new RegExp(x));
+        if (regexes.some(x => x.test(subject))) {
             console.log("Subject regex does not match");
             return result;
         }
@@ -161,8 +174,21 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         return result;
     }
 
+    if (rule.notbody && rule.notbody.some(val => body.toLowerCase().includes(val.toLowerCase()))) {
+        console.log("Body does not match.");
+        return result;
+    }
+
     if (rule.body_regex) {
         const regexes = rule.body_regex.map(x => new RegExp(x));
+        if (!regexes.some(x => x.test(body))) {
+            console.log("Body regex does not match");
+            return result;
+        }
+    }
+
+    if (rule.notbody_regex) {
+        const regexes = rule.notbody_regex.map(x => new RegExp(x));
         if (!regexes.some(x => x.test(body))) {
             console.log("Body regex does not match");
             return result;

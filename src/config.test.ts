@@ -168,3 +168,32 @@ mute: 28
 
     expect(t).toThrow();
 });
+
+test("Negated subject", () => {
+    const input = `---
+~subject: Hello
+mod_action:
+    mod_action_type: "banuser"
+    action_within: "15 minutes"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+    expect(rules[0].notsubject).toBeDefined();
+});
+
+test("Negated invalid check on rule", () => {
+    const input = `---
+subject: Hello
+mod_action:
+    ~mod_action_type: "banuser"
+    action_within: "15 minutes"
+mute: 28
+---`;
+
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).toThrow();
+});

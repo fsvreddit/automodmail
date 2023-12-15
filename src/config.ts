@@ -6,9 +6,13 @@ import {ModActionType} from "@devvit/public-api";
 
 export interface ResponseRule {
     subject?: string[],
+    notsubject?: string[],
     subject_regex?: string[],
+    notsubject_regex?: string[],
     body?: string[],
+    notbody?: string[],
     body_regex?: string[],
+    notbody_regex?: string[],
     author?: {
         post_karma?: string,
         comment_karma?: string,
@@ -40,9 +44,13 @@ const schema: JSONSchemaType<ResponseRule[]> = {
         type: "object",
         properties: {
             subject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notsubject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             subject_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notsubject_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             body: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             body_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notbody_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             author: {
                 type: "object",
                 properties: {
@@ -86,13 +94,17 @@ export function parseRules (rules?: string): ResponseRule[] {
         return [];
     }
 
-    const documents = parseAllDocuments(rules, {
+    // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
+    const preprocessedRules = rules
+        .split("\n")
+        .map(line => line.startsWith("~subject") || line.startsWith("~body") ? `not${line.substring(1)}` : line)
+        .join("\n");
+
+    const documents = parseAllDocuments(preprocessedRules, {
         strict: true,
     });
 
     const parsedRules = documents.map(x => x.toJSON() as ResponseRule).filter(x => x !== null);
-    console.log(JSON.stringify(parsedRules, null, 4));
-    // console.log(parsedRules[0]."~subject");
 
     const ajv = new Ajv.default({
         coerceTypes: "array",

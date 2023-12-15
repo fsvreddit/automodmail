@@ -153,7 +153,7 @@ mute: 28
     parseRules(input);
 });
 
-test("Real Mod Action", () => {
+test("Nonexistent Mod Action", () => {
     const input = `---
 subject: Hello
 mod_action:

@@ -110,34 +110,28 @@ export function parseRules (rules?: string): ResponseRule[] {
         coerceTypes: "array",
     });
 
-    try {
-        const validate = ajv.compile(schema);
+    const validate = ajv.compile(schema);
 
-        if (!validate(parsedRules)) {
-            console.log(ajv.errorsText(validate.errors));
-            throw new Error(ajv.errorsText(validate.errors));
-        }
-
-        for (const rule of parsedRules) {
-            const checkInvalid = validateRule(rule);
-            if (checkInvalid) {
-                throw new Error(checkInvalid);
+    if (!validate(parsedRules)) {
+        if (validate.errors) {
+            const additionalPropertyItem = validate.errors.find(x => x.keyword === "additionalProperties");
+            if (additionalPropertyItem) {
+                const propName = additionalPropertyItem.params["additionalProperty"] as string;
+                const error = `data${additionalPropertyItem.instancePath} has invalid property ${propName}`;
+                throw new Error(error);
             }
         }
+        throw new Error(ajv.errorsText(validate.errors));
+    }
 
-        return parsedRules;
-    } catch (e) {
-        if (e instanceof Error) {
-            // See if we can humanise the errors
-            if (e.message.includes("must NOT have additional properties")) {
-                throw new Error(e.message.replace("must NOT have additional properties", "has unknown keys"));
-            } else {
-                throw e;
-            }
-        } else {
-            throw e;
+    for (const rule of parsedRules) {
+        const checkInvalid = validateRule(rule);
+        if (checkInvalid) {
+            throw new Error(checkInvalid);
         }
     }
+
+    return parsedRules;
 }
 
 export function validateRule (rule: ResponseRule): string {
@@ -169,8 +163,16 @@ export function validateRule (rule: ResponseRule): string {
         return "You can only specify one of: body, body_regex";
     }
 
+    if (rule.notbody && rule.notbody_regex) {
+        return "You can only specify one of: ~body, ~body_regex";
+    }
+
     if (rule.subject && rule.subject_regex) {
         return "You can only specify one of: subject, subject_regex";
+    }
+
+    if (rule.notsubject && rule.notsubject_regex) {
+        return "You can only specify one of: ~subject, ~subject_regex";
     }
 
     if (rule.mod_action && !rule.mod_action.mod_action_type && !rule.mod_action.action_reason) {

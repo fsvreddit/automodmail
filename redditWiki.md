@@ -1,0 +1,200 @@
+# Modmail Automator
+
+Like AutoModerator, just for modmail.
+
+This app allows subreddit moderators to define rules using YAML to autorespond to incoming modmails, and optionally archive the modmail afterwards. 
+
+The intended use case in most cases is as a "first line" response to common questions, with users invited to reply and ask for more assistance if the autoresponder doesn't answer their question.
+
+The app supports a wide variety of different checks on three main categories of data: The modmail itself (subject and body), account properties (including age and karma) and recent mod actions made against the user.
+
+If you're familiar with AutoModerator, you'll be able to work with this tool.
+
+## Modmail properties
+
+`subject` matches the subject of the incoming modmail, and performs a case-insensitive match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
+
+`subject_regex` and `body_regex` likewise check the subject and body, but this time using regular expressions.
+
+All four of these modmail properties checks can take a single value or an array of values. The following are all valid:
+
+    subject: "Ban appeal"
+
+    body: ["shadowbanned", "comments not showing"]
+
+    subject: 
+        - shadowbanned
+        - comments not showing
+
+All four of these can also support negation e.g. `~subject`. If you use negation, then none of the search terms may match. You can use normal and negated properties together e.g. `body` and `~body` may appear in the same rule, but `body` cannot appear twice.
+
+## Account properties
+
+Account properties come under the `author` value, just like in AutoModerator. Two broad categories (threshold checks and other account properties) are supported, and both can be specified in the same rule.
+
+### Threshold checks
+
+The tool supports four threshold checks: `post_karma`, `comment_karma`, `combined_karma` and `account_age`. Due to limitations of the Community Apps platform, it is not possible to include subreddit karma checks.
+
+`post_karma`, `comment_karma`, `combined_karma` can have numeric comparators specified, not just exact values. For example, the following are all valid:
+
+    author:
+        post_karma: "< 100"
+        comment_karma: "= 100"
+
+`account age` additionally can include time units, with valid units being `minute`, `hour`, `day`, `week`, `month` and `year`. Time units can be singular or plural. So the following are all valid:
+
+    account_age: "< 1 year"
+
+    account_age: "< 6 months"
+
+    account_age: "> 3 days"
+
+While the = operator is *technically* supported for threshold checks, it's generally not recommended because to match you have to have the value match exactly. For dates, the precision is to the nearest millisecond so any equals matches on dates are very unlikely to ever work.
+
+Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g.
+
+    author:
+        account_age: "< 1 year"
+        comment_karma: "< 1000"
+        satisfy_any_threshold: "false"
+
+### Other account properties
+
+The app supports several other properties about users.
+
+`flair_text` and `flair_css_class` are simple text checks that match the flair text or CSS class **exactly**. This can be useful if you use flairs to categorise users. E.g.
+
+    author:
+        flair_text: "Helpful"
+
+There are also four true/false checks on account properties that may be useful: `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
+
+    author:
+        is_banned: "true"
+
+## Mod Action checks
+
+Sometimes users write in after an action has been taken against them. These checks allow you to autorespond if a user is writing in about a recent action. These come under the `mod_action` property.
+
+Sub properties are:
+
+`moderator_name`: the name (or names) of the moderator who took the action. This is case sensitive. 
+
+`mod_action_type`: the type of mod action taken. This must be one of the following: "banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "addmoderator", "showcomment", "invitemoderator", "uninvitemoderator", "acceptmoderatorinvite", "removemoderator", "addcontributor", "removecontributor", "editsettings", "editflair", "distinguish", "marknsfw", "wikibanned", "wikicontributor", "wikiunbanned", "wikipagelisted", "removewikicontributor", "wikirevise", "wikipermlevel", "ignorereports", "unignorereports", "setpermissions", "setsuggestedsort", "sticky", "unsticky", "setcontestmode", "unsetcontestmode", "lock", "unlock", "muteuser", "unmuteuser", "createrule", "editrule", "reorderrules", "deleterule", "spoiler", "unspoiler", "modmail_enrollment", "community_styling", "community_widgets", "markoriginalcontent", "collections", "events", "create_award", "disable_award", "delete_award", "enable_award", "mod_award_given", "hidden_award", "add_community_topics", "remove_community_topics", "create_scheduled_post", "edit_scheduled_post", "delete_scheduled_post", "submit_scheduled_post", "edit_post_requirements", "invitesubscriber", "submit_content_rating_survey", "adjust_post_crowd_control_level", "enable_post_crowd_control_filter", "disable_post_crowd_control_filter", "deleteoverriddenclassification", "overrideclassification", "reordermoderators", "snoozereports", "unsnoozereports", "addnote", "deletenote", "addremovalreason", "createremovalreason", "updateremovalreason", "deleteremovalreason", "reorderremovalreason", "dev_platform_app_changed", "dev_platform_app_disabled", "dev_platform_app_enabled", "dev_platform_app_installed", "dev_platform_app_uninstalled"
+
+`action_within`: The timeframe that the mod action was taken in relative to the date/time of the modmail. E.g. `action_within: 30 minutes`. Like account age, supported time units are `minute`, `hour`, `day`, `week`, `month` and `year`, with both singular and plural forms supported.
+
+`action_reason`: Text to match against the action_reason, if one is set (e.g. on `removecomment` or `removepost` mod actions). This is not case sensitive, checks substrings and both single and arrays are supported e.g.
+
+    action_reason: ["ban evasion", "crowd control"]
+
+    action_reason: "low karma"
+
+## Priority
+
+Like AutoModerator, this app supports the `priority` attribute against rules. Rules without a priority are treated as priority 0. If more than one rule matches the incoming modmail, the actions on the rule with he highest priority are taken and others ignored.
+
+`priority: 10`
+
+Like with AutoModerator, "highest priority" means the rule with the highest numeric value, so Priority 10 would run before Priority 1, and rules without priority would run before Priority -1.
+
+## Actions to take
+
+If all checks on a rule pass, there are a number of actions that can be taken: `reply`, `mute` and `archive`.
+
+`reply` replies to the user with the text specified. The following formats are all supported:
+
+    reply: "Here's some text to reply with"
+    
+    reply: |
+        Here's a multiline reply.
+
+        Like AutoModerator, this format is supported too.
+
+`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`.
+
+`archive` archives the modmail after sending a reply. You cannot use `archive` without a `reply` or `mute`. E.g. `archive: "true"`.
+
+### Placeholders on replies
+
+The following placeholders are all supported:
+
+`{{author}}` - the username for the user writing in, without the leading /u/
+
+`{{subreddit}}` - the subreddit the modmail was sent to.
+
+`{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action, in English. Example output formats can be seen [here](https://date-fns.org/docs/formatDistanceToNow).
+
+`{{mod_action_target_permalink}}` - the link to the post or comment (if applicable) that the mod action was taken against.
+
+`{{mod_action_target_kind}}` - Either "post" or "comment".
+
+The three mod_action placeholders will only work if a mod_action check is present in the rule. 
+
+## "Signoff" for responses
+
+In the configuration screen, you can also specify a "signoff" footer to be included on all autoresponses. It's recommended that you include one of these and use it to make users aware that the response is automatic and that they can reply to get more information from a human.
+
+# Putting it all together
+
+Here are some example rules to provide some inspiration about what is possible.
+
+## Responding to shadowbanned users
+
+Here's an example rule that replies to a user who might be querying why their content isn't showing up. 
+
+    ---
+    body: [removed, hidden, shadowban, invisible, deleted]
+    author:
+        is_shadowbanned: true
+    reply: |
+        Thanks for writing in. Unfortunately, your account has been shadowbanned by Reddit admin. This is not something we have any control over. 
+
+        Until this situation is resolved, your posts and comments will be invisible. You can [appeal your shadowban](https://reddit.com/appeal) or see /r/shadowban for more information about shadowbans.
+    archive: true
+    ---
+
+## Responding to ban appeals from users who aren't banned.
+
+    ---
+    subject: ["ban appeal", "why am i banned", "why banned"]
+    author:
+        is_banned: false
+    reply: |
+        Hi /u/{{author}},
+        
+        It looks like you're trying to appeal a ban from {{subreddit}}. You don't appear to be banned at the current time.
+    archive: true
+    ----
+
+## Responding to comments appealing automod actions
+
+For example, you might have an Automod rule that removes a comment and replies to the user explaining why the content was removed. I recommend that any rules that act on mod actions like removepost or removecomment use a very short action_within timespan to avoid responding to unrelated things.
+
+    ---
+    body: ["removed", "not showing", "deleted"]
+    mod_action:
+        moderator_name: "AutoModerator"
+        mod_action_type: "removecomment"
+        action_within: "15 minutes",
+        action_reason: "social links filter"
+    reply: | 
+        Hi /u/{{author}},
+        
+        It looks like you're asking why your recent [{{mod_action_target_kind}}](mod_action_target_permalink) was removed. We don't allow links to social media on {{subreddit}} due to past abuse.
+    archive: true
+    ---
+
+## As a spam filter
+
+Some subreddits get a large amount of spam with predictable patterns that can be detected, that you may wish to simply keep out of view.
+
+    ---
+    subject: "opportunity"
+    body_regex: "(?:badcryptoscamsite1.com|badcryptoscamsite2.com)"
+    mute: 28
+    archive: true
+    ---
+
+Note: any rules that mute should be used with caution, because they may stop legitimate users from getting in touch.

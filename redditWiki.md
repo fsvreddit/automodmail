@@ -52,12 +52,12 @@ The tool supports four threshold checks: `post_karma`, `comment_karma`, `combine
 
 While the = operator is *technically* supported for threshold checks, it's generally not recommended because to match you have to have the value match exactly. For dates, the precision is to the nearest millisecond so any equals matches on dates are very unlikely to ever work.
 
-Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g.
+Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g. this ruleset would pass if either the account age was under a year old, or the comment karma under 1000.
 
     author:
         account_age: "< 1 year"
         comment_karma: "< 1000"
-        satisfy_any_threshold: "false"
+        satisfy_any_threshold: "true"
 
 ### Other account properties
 
@@ -182,7 +182,7 @@ For example, you might have an Automod rule that removes a comment and replies t
     reply: | 
         Hi /u/{{author}},
         
-        It looks like you're asking why your recent [{{mod_action_target_kind}}](mod_action_target_permalink) was removed. We don't allow links to social media on {{subreddit}} due to past abuse.
+        It looks like you're asking why your recent [{{mod_action_target_kind}}]({{mod_action_target_permalink}}) was removed. We don't allow links to social media on {{subreddit}} due to past abuse.
     archive: true
     ---
 
@@ -198,3 +198,10 @@ Some subreddits get a large amount of spam with predictable patterns that can be
     ---
 
 Note: any rules that mute should be used with caution, because they may stop legitimate users from getting in touch.
+
+# Limitations
+
+Due to limitations in the Devvit API, I am currently unable to support the following:
+
+* Whether the user's ban was temporary or permanent, or how long it has left to run
+* Subreddit-specific comment or post karma

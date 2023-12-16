@@ -64,7 +64,7 @@ The tool supports four threshold checks: `post_karma`, `comment_karma`, `combine
 
     account_age: "> 3 days"
 
-Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g. this ruleset would pass if either the account age was under a year old, or the comment karma under 1000.
+Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g. this ruleset would pass if either the account age was under a year old, or the comment karma under 1000. If `satisfy_any_threshold` isn't specified, it defaults to false.
 
     author:
         account_age: "< 1 year"

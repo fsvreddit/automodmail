@@ -197,3 +197,13 @@ mute: 28
 
     expect(t).toThrow();
 });
+
+test("Comments handled properly", () => {
+    const input = `---
+subject: Hello # This is a comment and shouldn't show.
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+    expect(rules[0].subject).toEqual(["Hello"]);
+});

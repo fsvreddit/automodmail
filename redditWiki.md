@@ -10,6 +10,20 @@ The app supports a wide variety of different checks on three main categories of 
 
 If you're familiar with AutoModerator, you'll be able to work with this tool.
 
+## General principles
+
+Like AutoModerator, more than one rule can be specified. If you have more than one rule, separate the rules with ---
+
+Comments are supported. To make a comment on a rule, use a # symbol and anything from that point onwards on the line will be considered a comment.
+
+Strings may be enclosed in quotes but this is not mandatory. So the following are all valid:
+
+    subject: "hello"
+    subject: 'hello'
+    subject: hello
+
+If you need a string to start with a > character, you must enclose it in quotes because > is a special character in YAML denoting the start of a multi-line string.
+
 ## Modmail properties
 
 `subject` matches the subject of the incoming modmail, and performs a case-insensitive match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
@@ -91,6 +105,8 @@ Sub properties are:
 
     action_reason: "low karma"
 
+**Note**: The app will only look back through the most recent 200 mod actions that match the specified moderator name(s) and/or mod actions. As a result, mod action checks are usually only suitable for fairly recent actions especially if you have a subreddit with a busy mod log. 
+
 ## Priority
 
 Like AutoModerator, this app supports the `priority` attribute against rules. Rules without a priority are treated as priority 0. If more than one rule matches the incoming modmail, the actions on the rule with he highest priority are taken and others ignored.
@@ -157,6 +173,8 @@ Here's an example rule that replies to a user who might be querying why their co
 
 ## Responding to ban appeals from users who aren't banned.
 
+Here's an example of a rule that checks for keywords relating to 
+
     ---
     subject: ["ban appeal", "why am i banned", "why banned"]
     author:
@@ -170,7 +188,7 @@ Here's an example rule that replies to a user who might be querying why their co
 
 ## Responding to comments appealing automod actions
 
-For example, you might have an Automod rule that removes a comment and replies to the user explaining why the content was removed. I recommend that any rules that act on mod actions like removepost or removecomment use a very short action_within timespan to avoid responding to unrelated things.
+For example, you might have an Automod rule that removes a comment and replies to the user explaining why the content was removed. I recommend that any rules that act on mod actions like removepost or removecomment use a very short action_within timespan to avoid responding to unrelated things. In this example, you might have a rule that removes links from social media platforms, with an action_reason that includes "social links filter".
 
     ---
     body: ["removed", "not showing", "deleted"]
@@ -199,9 +217,22 @@ Some subreddits get a large amount of spam with predictable patterns that can be
 
 Note: any rules that mute should be used with caution, because they may stop legitimate users from getting in touch.
 
+## As an autoresponder for a subreddit that is closed temporarily
+
+Occasionally, subreddits will close temporarily such as in the wake of a major incident in a country-specific sub, but often modmail will be busy with join requests. You can use this app to respond to all modmail temporarily.
+
+    ---
+    author:
+        is_contributor: false # Cannot be a join request if user's already approved
+    reply: |
+        Hi {{author}},
+
+        Sorry, but {{subreddit}} is temporarily closed. We expect to reopen at 9am GMT on Monday and aren't accepting requests to join in the meantime.
+    archive: true
+
 # Limitations
 
 Due to limitations in the Devvit API, I am currently unable to support the following:
 
-* Whether the user's ban was temporary or permanent, or how long it has left to run
+* Whether the user's ban was temporary or permanent, what the ban reason was, or how long it has left to run
 * Subreddit-specific comment or post karma

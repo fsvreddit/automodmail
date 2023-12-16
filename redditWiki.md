@@ -56,15 +56,13 @@ The tool supports four threshold checks: `post_karma`, `comment_karma`, `combine
         post_karma: "< 100"
         comment_karma: "= 100"
 
-`account age` additionally can include time units, with valid units being `minute`, `hour`, `day`, `week`, `month` and `year`. Time units can be singular or plural. So the following are all valid:
+`account age` additionally can include time units, with valid units being `minute`, `hour`, `day`, `week`, `month` and `year`. Time units can be singular or plural. Comparison operators supported are >, <, >= and <=. So the following are all valid:
 
     account_age: "< 1 year"
 
     account_age: "< 6 months"
 
     account_age: "> 3 days"
-
-While the = operator is *technically* supported for threshold checks, it's generally not recommended because to match you have to have the value match exactly. For dates, the precision is to the nearest millisecond so any equals matches on dates are very unlikely to ever work.
 
 Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g. this ruleset would pass if either the account age was under a year old, or the comment karma under 1000.
 

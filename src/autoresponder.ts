@@ -62,6 +62,14 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         return;
     }
 
+    const rulesYaml = await context.settings.get<string>("rules");
+    const rules = parseRules(rulesYaml);
+
+    if (rules.length === 0) {
+        console.log("No rules are defined. Quitting.");
+        return;
+    }
+
     let participant: User | undefined;
     try {
         // Doing this in a try/catch because otherwise the user might be shadowbanned.
@@ -73,9 +81,6 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     const subject = conversationResponse.conversation.subject ?? "";
     const body = firstMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
-
-    const rulesYaml = await context.settings.get<string>("rules");
-    const rules = parseRules(rulesYaml);
 
     let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant)));
 

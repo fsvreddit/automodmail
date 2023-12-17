@@ -13,6 +13,7 @@ interface RuleMatchContext {
     reply?: string,
     mute?: number,
     archive?: boolean,
+    unban?: boolean,
     modActionDate?: Date,
     modActionTargetPermalink?: string
     modActionTargetKind?: string
@@ -132,6 +133,11 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         await context.reddit.modMail.archiveConversation(event.conversationId);
         console.log("Conversation archived");
     }
+
+    if (firstMatchedRule.unban) {
+        await context.reddit.unbanUser(event.messageAuthor.name, subreddit.name);
+        console.log("User unbanned");
+    }
 }
 
 async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined): Promise<RuleMatchContext> {
@@ -141,6 +147,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         reply: rule.reply,
         mute: rule.mute,
         archive: rule.archive,
+        unban: rule.unban,
     };
 
     if (rule.subject && !rule.subject.some(val => subject.toLowerCase().includes(val.toLowerCase()))) {

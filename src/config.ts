@@ -38,6 +38,7 @@ export interface ResponseRule {
     reply?: string,
     mute?: number,
     archive?: boolean,
+    unban?: boolean,
 }
 
 const schema: JSONSchemaType<ResponseRule[]> = {
@@ -88,6 +89,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             reply: {type: "string", nullable: true},
             mute: {type: "integer", nullable: true},
             archive: {type: "boolean", nullable: true},
+            unban: {type: "boolean", nullable: true},
         },
         additionalProperties: false,
     },
@@ -185,6 +187,10 @@ export function validateRule (rule: ResponseRule): string {
 
     if (rule.mod_action && !rule.mod_action.mod_action_type && !rule.mod_action.action_reason) {
         return "When specifying a mod action, you must have an action type or action reason or both defined.";
+    }
+
+    if (rule.unban && (!rule.author || !rule.author.is_banned)) {
+        return "You can only have an unban action if there is an author check for is_banned = true";
     }
 
     return "";

@@ -14,6 +14,8 @@ export interface ResponseRule {
     body_regex?: string[],
     notbody_regex?: string[],
     author?: {
+        name?: string[],
+        name_regex?: string[],
         post_karma?: string,
         comment_karma?: string,
         combined_karma?: string,
@@ -54,6 +56,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             author: {
                 type: "object",
                 properties: {
+                    name: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    name_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
                     post_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
                     comment_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
                     combined_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
@@ -173,6 +177,10 @@ export function validateRule (rule: ResponseRule): string {
 
     if (rule.notsubject && rule.notsubject_regex) {
         return "You can only specify one of: ~subject, ~subject_regex";
+    }
+
+    if (rule.author && rule.author.name && rule.author.name_regex) {
+        return "You can only specify one of: author.name, author.name_regex";
     }
 
     if (rule.mod_action && !rule.mod_action.mod_action_type && !rule.mod_action.action_reason) {

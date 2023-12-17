@@ -154,7 +154,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
     }
 
     if (rule.subject_regex) {
-        const regexes = rule.subject_regex.map(x => new RegExp(x));
+        const regexes = rule.subject_regex.map(x => new RegExp(x, "i"));
         if (!regexes.some(x => x.test(subject))) {
             console.log("Subject regex does not match");
             return result;
@@ -162,7 +162,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
     }
 
     if (rule.notsubject_regex) {
-        const regexes = rule.notsubject_regex.map(x => new RegExp(x));
+        const regexes = rule.notsubject_regex.map(x => new RegExp(x, "i"));
         if (regexes.some(x => x.test(subject))) {
             console.log("Subject regex does not match");
             return result;
@@ -198,6 +198,19 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
     if (rule.author) {
         if (participant) {
             // Most checks need the user to be not shadowbanned.
+            if (rule.author.name && !rule.author.name.some(name => name.toLowerCase() === participant.username.toLowerCase())) {
+                console.log("Author name doesn't match");
+                return result;
+            }
+
+            if (rule.author.name_regex) {
+                const regexes = rule.author.name_regex.map(x => new RegExp(x, "i"));
+                if (!regexes.some(x => x.test(participant.username))) {
+                    console.log("Author name regex doesn't match");
+                    return result;
+                }
+            }
+
             const thresholdChecks: boolean[] = [];
             if (rule.author.post_karma) {
                 thresholdChecks.push(meetsNumericThreshold(participant.linkKarma, rule.author.post_karma));

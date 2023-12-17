@@ -28,7 +28,7 @@ If you need a string to start with a > character, you must enclose it in quotes 
 
 `subject` matches the subject of the incoming modmail, and performs a case-insensitive match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
 
-`subject_regex` and `body_regex` likewise check the subject and body, but this time using regular expressions.
+`subject_regex` and `body_regex` likewise check the subject and body, but this time using regular expressions, which ignore case.
 
 All four of these modmail properties checks can take a single value or an array of values. The following are all valid:
 
@@ -84,6 +84,24 @@ There are also four true/false checks on account properties that may be useful: 
 
     author:
         is_banned: "true"
+
+You can also check the account name. `name` matches the user name exactly, although in a case-insensitive manner. For example:
+
+    author:
+        name: "BadUser1234"
+
+    author:
+        name: ["BadUser1", "BadUser2"]
+
+Alternatively, you can check the account name using regular expressions:
+
+    author:
+        name_regex: "^BadUserTryAgain\d{1,3}$"
+
+    author:
+        name_regex: ["^BadUserTryAgain\d{1,3}$", "^ThrowRA"]
+
+Regular expressions are evaluated in a case insensitive manner.
 
 ## Mod Action checks
 

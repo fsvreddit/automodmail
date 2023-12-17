@@ -171,7 +171,7 @@ Here's an example rule that replies to a user who might be querying why their co
 
 ## Responding to ban appeals from users who aren't banned.
 
-Here's an example of a rule that checks for keywords relating to 
+Here's an example of a rule that checks for keywords relating to ban appeals, but for users who might not actually be banned (more common than I wish!). If the user isn't banned, they'll receive an auto response telling them so.
 
     ---
     subject: ["ban appeal", "why am i banned", "why banned"]
@@ -186,7 +186,7 @@ Here's an example of a rule that checks for keywords relating to
 
 ## Responding to comments appealing automod actions
 
-For example, you might have an Automod rule that removes a comment and replies to the user explaining why the content was removed. I recommend that any rules that act on mod actions like removepost or removecomment use a very short action_within timespan to avoid responding to unrelated things. In this example, you might have a rule that removes links from social media platforms, with an action_reason that includes "social links filter".
+For example, you might have an Automod rule that removes a comment and replies to the user explaining why the content was removed. I recommend that any rules that act on mod actions like removepost or removecomment use a very short `action_within` timespan to avoid responding to unrelated things. In this example, you might have a rule that removes links from social media platforms, with an action_reason that includes "social links filter".
 
     ---
     body: ["removed", "not showing", "deleted"]

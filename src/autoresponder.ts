@@ -415,9 +415,6 @@ function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: s
     }
 
     switch (operator) {
-        case "":
-        case "=":
-            return add(input, duration) === new Date();
         case "<":
             return add(input, duration) < new Date();
         case "<=":

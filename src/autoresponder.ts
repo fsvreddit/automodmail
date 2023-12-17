@@ -164,7 +164,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
     if (rule.notsubject_regex) {
         const regexes = rule.notsubject_regex.map(x => new RegExp(x, "i"));
         if (regexes.some(x => x.test(subject))) {
-            console.log("Subject regex does not match");
+            console.log("~Subject regex does not match");
             return result;
         }
     }

@@ -80,7 +80,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant)));
 
     // Sort by priority descending, take top 1.
-    matchedRules = matchedRules.filter(x => x.ruleMatched).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+    matchedRules = matchedRules.filter(x => x.ruleMatched).sort((a, b) => b.priority - a.priority);
 
     if (matchedRules.length === 0) {
         console.log("No rules matched.");

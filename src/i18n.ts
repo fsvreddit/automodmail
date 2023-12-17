@@ -26,6 +26,11 @@ export const languageList: Language[] = [
     {languageName: "Türkçe", isoCode: "tr", locale: tr},
 ];
 
+/**
+ * Converts an ISO language code to the corresponding date-fns locale object for supported languages.
+ * @param localeString The ISO country code
+ * @returns A date-fns Locale object
+ */
 export function localeFromString (localeString: string): Locale {
     const language = languageList.find(language => language.isoCode === localeString);
     if (language) {

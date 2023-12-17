@@ -20,6 +20,11 @@ interface RuleMatchContext {
     modActionTargetKind?: string
 }
 
+/**
+ * Handles the Devvit trigger that fires on any new Modmail Receive events.
+ * @param event The trigger event
+ * @param context Context
+ */
 export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, context: TriggerContext) {
     console.log("Received modmail trigger event.");
     console.log(`Event Message ID: ${event.messageId}`);
@@ -147,6 +152,16 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     }
 }
 
+/**
+ * Checks if a rule matches the modmail contents and user/modlog context
+ * @param context Reddit TriggerContext object
+ * @param subreddit The subreddit object
+ * @param rule The rule object
+ * @param subject The subject line from the modmail
+ * @param body The body text from the modmail
+ * @param participant A user object, or undefined if a shadowbanned/suspended user
+ * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
+ */
 async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
@@ -349,6 +364,12 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
     return result;
 }
 
+/**
+ * A function to compare a number to a text input
+ * @param input The numeric input
+ * @param threshold The threshold to meet e.g. < 10
+ * @returns True or false
+ */
 function meetsNumericThreshold (input: number, threshold: string): boolean {
     const regex = new RegExp(numericComparatorPattern);
     const matches = threshold.match(regex);
@@ -376,6 +397,13 @@ function meetsNumericThreshold (input: number, threshold: string): boolean {
     }
 }
 
+/**
+ * A function to compare a number to a text input
+ * @param input The date input
+ * @param threshold The threshold to meet e.g. < 10 years
+ * @param defaultOperator The operator to use if none is specified
+ * @returns True or false
+ */
 function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: string): boolean {
     const regex = new RegExp(dateComparatorPattern);
     const matches = threshold.match(regex);

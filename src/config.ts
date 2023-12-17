@@ -41,6 +41,9 @@ export interface ResponseRule {
     unban?: boolean,
 }
 
+/**
+ * Ajv schema used to validate response rules.
+ */
 const schema: JSONSchemaType<ResponseRule[]> = {
     type: "array",
     items: {
@@ -95,6 +98,11 @@ const schema: JSONSchemaType<ResponseRule[]> = {
     },
 };
 
+/**
+ * Parses Modmail Automator rules written in YAML and returns structured objects.
+ * @param rules A string containing YAML
+ * @returns an array of ResponseRule objects that define the configuration for Modmail Automator
+ */
 export function parseRules (rules?: string): ResponseRule[] {
     if (!rules) {
         return [];
@@ -140,6 +148,11 @@ export function parseRules (rules?: string): ResponseRule[] {
     return parsedRules;
 }
 
+/**
+ * Validates that a rule does not contain issues.
+ * @param rule The rule to check
+ * @returns An empty string if the rule is valid, or a string containing the issue with the rule if not.
+ */
 export function validateRule (rule: ResponseRule): string {
     if (!rule.reply && !rule.mute) {
         return "No actions specified. Rule must either reply or mute (or both)";

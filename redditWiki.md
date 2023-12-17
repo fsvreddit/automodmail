@@ -148,7 +148,7 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `archive` archives the modmail after sending a reply. You cannot use `archive` without a `reply` or `mute`. E.g. `archive: "true"`.
 
-`unban` unbans the user (if they were already banned).
+`unban` unbans the user (if they were already banned). E.g. `unban: "true"`. 
 
 ### Placeholders on replies
 

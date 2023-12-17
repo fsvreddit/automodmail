@@ -41,7 +41,7 @@ test("Nonexistent test", () => {
     const input = `---
 subject: [Foo]
 subreddit_name: testsub
-mute: 1.4
+mute: 3
 ---`;
 
     const t = () => {

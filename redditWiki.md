@@ -158,7 +158,7 @@ The following placeholders are all supported:
 
 `{{subreddit}}` - the subreddit the modmail was sent to.
 
-`{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action, in English. Example output formats can be seen [here](https://date-fns.org/docs/formatDistanceToNow).
+`{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. Example output formats can be seen [here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
 
 `{{mod_action_target_permalink}}` - the link to the post or comment (if applicable) that the mod action was taken against.
 

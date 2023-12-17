@@ -3,6 +3,7 @@ import {ModMail} from "@devvit/protos";
 import {ResponseRule, parseRules} from "./config.js";
 import {Duration, add, formatDistanceToNow} from "date-fns";
 import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
+import {localeFromString} from "./i18n.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -107,7 +108,8 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
         if (firstMatchedRule.modActionDate) {
-            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(firstMatchedRule.modActionDate));
+            const localeResult = await context.settings.get<string[]>("locale") ?? ["enUS"];
+            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(firstMatchedRule.modActionDate, {locale: localeFromString(localeResult[0])}));
         }
         if (firstMatchedRule.modActionTargetPermalink) {
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", firstMatchedRule.modActionTargetPermalink);

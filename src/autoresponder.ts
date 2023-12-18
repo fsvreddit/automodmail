@@ -1,7 +1,7 @@
 import {OnTriggerEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, parseRules} from "./config.js";
-import {Duration, add, formatDistanceToNow} from "date-fns";
+import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow} from "date-fns";
 import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
 import {localeFromString} from "./i18n.js";
 
@@ -324,23 +324,17 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
             limit: 200,
         }).all();
 
-        console.log(modLog.length);
-
         modLog = modLog.filter(x => x.target && x.target.author === participant.username);
 
         if (rule.mod_action.action_within) {
-            modLog = modLog.filter(x => rule.mod_action && rule.mod_action.action_within && meetsDateThreshold(x.createdAt, rule.mod_action.action_within, ">"));
+            modLog = modLog.filter(x => rule.mod_action && rule.mod_action.action_within && meetsDateThreshold(x.createdAt, rule.mod_action.action_within, "<"));
             console.log(`After removing old entries: ${modLog.length} log entries still found`);
         }
-
-        console.log(modLog);
 
         if (rule.mod_action.action_reason) {
             modLog = modLog.filter(logEntry => rule.mod_action?.action_reason?.some(reason => `${logEntry.details ?? ""} ${logEntry.description ?? ""}`.toLowerCase().includes(reason.toLowerCase())));
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
-
-        console.log(modLog);
 
         if (modLog.length === 0) {
             console.log("No matching mod log entry!");
@@ -370,7 +364,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
  * @param threshold The threshold to meet e.g. < 10
  * @returns True or false
  */
-function meetsNumericThreshold (input: number, threshold: string): boolean {
+export function meetsNumericThreshold (input: number, threshold: string): boolean {
     const regex = new RegExp(numericComparatorPattern);
     const matches = threshold.match(regex);
     if (!matches || matches.length !== 3) {
@@ -404,7 +398,7 @@ function meetsNumericThreshold (input: number, threshold: string): boolean {
  * @param defaultOperator The operator to use if none is specified
  * @returns True or false
  */
-function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: string): boolean {
+export function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: string): boolean {
     const regex = new RegExp(dateComparatorPattern);
     const matches = threshold.match(regex);
     if (!matches || matches.length !== 4) {
@@ -418,41 +412,41 @@ function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: s
     const value = parseInt(matches[2]);
     const interval = matches[3];
 
-    let duration: Duration | undefined;
+    let comparisonDate: Date | undefined;
     switch (interval) {
         case "minute":
-            duration = {minutes: value};
+            comparisonDate = addMinutes(new Date(), -value);
             break;
         case "hour":
-            duration = {hours: value};
+            comparisonDate = addHours(new Date(), -value);
             break;
         case "day":
-            duration = {days: value};
+            comparisonDate = addDays(new Date(), -value);
             break;
         case "week":
-            duration = {weeks: value};
+            comparisonDate = addWeeks(new Date(), -value);
             break;
         case "month":
-            duration = {months: value};
+            comparisonDate = addMonths(new Date(), -value);
             break;
         case "year":
-            duration = {years: value};
+            comparisonDate = addYears(new Date(), -value);
             break;
     }
 
-    if (!duration) {
+    if (!comparisonDate) {
         return false;
     }
 
     switch (operator) {
         case "<":
-            return add(input, duration) < new Date();
+            return comparisonDate < input;
         case "<=":
-            return add(input, duration) <= new Date();
+            return comparisonDate <= input;
         case ">":
-            return add(input, duration) > new Date();
+            return comparisonDate > input;
         case ">=":
-            return add(input, duration) >= new Date();
+            return comparisonDate >= input;
         default:
             return false;
     }

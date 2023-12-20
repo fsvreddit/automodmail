@@ -3,7 +3,7 @@ import {ModMail} from "@devvit/protos";
 import {ResponseRule, parseRules} from "./config.js";
 import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow} from "date-fns";
 import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
-import {localeFromString} from "./i18n.js";
+import {Language, languageFromString} from "./i18n.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -16,8 +16,8 @@ interface RuleMatchContext {
     archive?: boolean,
     unban?: boolean,
     modActionDate?: Date,
-    modActionTargetPermalink?: string
-    modActionTargetKind?: string
+    modActionTargetPermalink?: string,
+    modActionTargetKind?: "post" | "comment",
 }
 
 /**
@@ -112,15 +112,25 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 
         replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
-        if (firstMatchedRule.modActionDate) {
+        let language: Language | undefined = undefined;
+        if (firstMatchedRule.modActionDate || firstMatchedRule.modActionTargetKind) {
             const localeResult = await context.settings.get<string[]>("locale") ?? ["enUS"];
-            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(firstMatchedRule.modActionDate, {locale: localeFromString(localeResult[0])}));
+            language = languageFromString(localeResult[0]);
+        }
+
+        if (firstMatchedRule.modActionDate && language) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(firstMatchedRule.modActionDate, {locale: language.locale}));
         }
         if (firstMatchedRule.modActionTargetPermalink) {
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", firstMatchedRule.modActionTargetPermalink);
         }
-        if (firstMatchedRule.modActionTargetKind) {
-            replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", firstMatchedRule.modActionTargetKind);
+        if (firstMatchedRule.modActionTargetKind && language) {
+            let targetKind = await context.settings.get<string>(`${firstMatchedRule.modActionTargetKind}String`);
+            if (!targetKind) {
+                targetKind = firstMatchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
+            }
+
+            replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
         }
 
         await context.reddit.modMail.reply({

@@ -28,13 +28,31 @@ Devvit.addSettings([
         defaultValue: "*This is an automatic response. If you need more assistance, please reply to this message and a human moderator will review your request.*",
     },
     {
-        type: "select",
-        name: "locale",
-        label: "Language to use for output",
-        helpText: "Affects {{mod_action_timespan_to_now}} placeholder only at the present time",
-        multiSelect: false,
-        options: languageList.map(language => ({label: language.languageName, value: language.isoCode})),
-        defaultValue: ["en"],
+        type: "group",
+        label: "Language Options",
+        fields: [
+            {
+                type: "select",
+                name: "locale",
+                label: "Language to use for output",
+                helpText: "Affects {{mod_action_timespan_to_now}} placeholder only at the present time",
+                multiSelect: false,
+                options: languageList.map(language => ({label: language.languageName, value: language.isoCode})),
+                defaultValue: ["en"],
+            },
+            {
+                type: "string",
+                name: "postString",
+                label: "Override text for 'post'",
+                helpText: "If you prefer to use a different term to the default for the chosen language, enter it here.",
+            },
+            {
+                type: "string",
+                name: "commentString",
+                label: "Override text for 'comment'",
+                helpText: "If you prefer to use a different term to the default for the chosen language, enter it here.",
+            },
+        ],
     },
 ]);
 

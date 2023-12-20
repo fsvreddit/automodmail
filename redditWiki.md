@@ -202,7 +202,7 @@ Here's an example of a rule that checks for keywords relating to ban appeals, bu
         
         It looks like you're trying to appeal a ban from {{subreddit}}. You don't appear to be banned at the current time.
     archive: true
-    ----
+    ---
 
 ## Responding to comments appealing automod actions
 

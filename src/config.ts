@@ -13,6 +13,7 @@ export interface ResponseRule {
     notbody?: string[],
     body_regex?: string[],
     notbody_regex?: string[],
+    moderators_exempt?: boolean,
     author?: {
         name?: string[],
         name_regex?: string[],
@@ -57,6 +58,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             notbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             body_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             notbody_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            moderators_exempt: {type: "boolean", nullable: true},
             author: {
                 type: "object",
                 properties: {

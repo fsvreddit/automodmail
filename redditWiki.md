@@ -131,6 +131,14 @@ Like AutoModerator, this app supports the `priority` attribute against rules. Ru
 
 Like with AutoModerator, "highest priority" means the rule with the highest numeric value, so Priority 10 would run before Priority 1, and rules without priority would run before Priority -1.
 
+## Moderator Exemptions
+
+Rules will not match if a moderator writes in to their own sub's modmail unless this is specified against the rule.
+
+`moderators_exempt: false`
+
+If you specify `moderators_exempt: true`, this will behave as if `moderators_exempt` isn't specified at all.
+
 ## Actions to take
 
 If all checks on a rule pass, there are a number of actions that can be taken: `reply`, `mute` and `archive`.
@@ -144,7 +152,7 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
         Like AutoModerator, this format is supported too.
 
-`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`.
+`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`. Note: Due to an issue with the Community Apps platform, all mutes will be for three days until the issue is fixed.
 
 `archive` archives the modmail after sending a reply. You cannot use `archive` without a `reply` or `mute`. E.g. `archive: "true"`.
 

@@ -88,7 +88,12 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     const body = firstMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
 
-    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant)));
+    let userIsModerator = false;
+    if (participant) {
+        userIsModerator = await isModerator(context, subreddit.name, participant.username);
+    }
+
+    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant, userIsModerator)));
 
     // Sort by priority descending, take top 1.
     matchedRules = matchedRules.filter(x => x.ruleMatched).sort((a, b) => b.priority - a.priority);
@@ -143,9 +148,9 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         console.log("Replied to modmail");
     }
 
-    if (firstMatchedRule.mute) {
+    if (firstMatchedRule.mute && conversationResponse.conversation.id) {
         await context.reddit.modMail.muteConversation({
-            conversationId: event.conversationId,
+            conversationId: conversationResponse.conversation.id,
             numHours: firstMatchedRule.mute * 24,
         });
         console.log("User muted");
@@ -172,7 +177,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined): Promise<RuleMatchContext> {
+async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined, userIsModerator: boolean): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -181,6 +186,11 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         archive: rule.archive,
         unban: rule.unban,
     };
+
+    if (rule.moderators_exempt !== false && userIsModerator) {
+        console.log("Rule exempts moderators, and user is a mod.");
+        return result;
+    }
 
     if (rule.subject && !rule.subject.some(val => subject.toLowerCase().includes(val.toLowerCase()))) {
         console.log("Subject does not match.");
@@ -292,7 +302,6 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
             }
 
             if (rule.author.is_moderator !== undefined) {
-                const userIsModerator = await isModerator(context, subreddit.name, participant.username);
                 if (rule.author.is_moderator !== userIsModerator) {
                     console.log("Moderator check failed, skipping rule.");
                     return result;

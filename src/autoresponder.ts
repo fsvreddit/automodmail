@@ -117,7 +117,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 
         replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
-        let language: Language | undefined = undefined;
+        let language: Language | undefined;
         if (firstMatchedRule.modActionDate || firstMatchedRule.modActionTargetKind) {
             const localeResult = await context.settings.get<string[]>("locale") ?? ["enUS"];
             language = languageFromString(localeResult[0]);

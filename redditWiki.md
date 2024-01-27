@@ -62,6 +62,8 @@ The tool supports four threshold checks: `post_karma`, `comment_karma`, `combine
 
     account_age: "< 6 months"
 
+    account_age: "> 2 week"
+
     account_age: "> 3 days"
 
 Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g. this ruleset would pass if either the account age was under a year old, or the comment karma under 1000. If `satisfy_any_threshold` isn't specified, it defaults to false.
@@ -70,6 +72,8 @@ Along with the four threshold checks, like AutoModerator this app supports the `
         account_age: "< 1 year"
         comment_karma: "< 1000"
         satisfy_any_threshold: "true"
+
+It is unlikely that "=" checks will be useful for many rules, especially for dates.
 
 ### Other account properties
 
@@ -156,7 +160,7 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `archive` archives the modmail after sending a reply. You cannot use `archive` without a `reply` or `mute`. E.g. `archive: "true"`.
 
-`unban` unbans the user (if they were already banned). E.g. `unban: "true"`. 
+`unban` unbans the user (if they were already banned). E.g. `unban: "true"`.
 
 ### Placeholders on replies
 
@@ -170,7 +174,7 @@ The following placeholders are all supported:
 
 `{{mod_action_target_permalink}}` - the link to the post or comment (if applicable) that the mod action was taken against.
 
-`{{mod_action_target_kind}}` - Either "post" or "comment".
+`{{mod_action_target_kind}}` - Either "post" or "comment". Like the timespan above, this will respect the language chosen. You can also choose your own terms for "post" and "comment" in the configuration options if you need to support further languages, or if you think a better translation could have been used (if you do have any suggestions on improving translations, please contact /u/fsv!)
 
 The three mod_action placeholders will only work if a mod_action check is present in the rule. 
 
@@ -178,7 +182,7 @@ The three mod_action placeholders will only work if a mod_action check is presen
 
 If you add `verbose_logs: true` to any rule, the app will reply with a private mod note with information about why each check in a rule passed or failed. This can be useful when testing rules or trying to work out why a rule isn't working. I recommend only using this for short periods, maybe even just in test subreddits, because when any rule has verbose_logs turned on the app will respond to EVERY new modmail.
 
-More than one rule can have verbose_logs enabled at a time.
+More than one rule can have verbose_logs enabled at a time, but it is generally going to be most useful to enable for a single rule at a time and only while testing it.
 
 ## "Signoff" for responses
 
@@ -272,3 +276,7 @@ Due to limitations in the Devvit API, I am currently unable to support the follo
 
 * Whether the user's ban was temporary or permanent, what the ban reason was, or how long it has left to run
 * Subreddit-specific comment or post karma
+
+# Source code and licence
+
+Modmail Automator is free and open source under the BSD three-clause licence. You can find it on Github [here](https://github.com/fsvreddit/automodmail).

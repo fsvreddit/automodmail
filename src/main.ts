@@ -8,6 +8,7 @@ Devvit.addSettings([
         type: "paragraph",
         name: "rules",
         label: "Enter YAML autoresponse rules",
+        helpText: "Please see documentation here for syntax: https://www.reddit.com/r/fsvapps/wiki/auto-modmail",
         onValidate: ({value}) => {
             try {
                 parseRules(value);

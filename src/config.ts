@@ -40,6 +40,7 @@ export interface ResponseRule {
     mute?: number,
     archive?: boolean,
     unban?: boolean,
+    verbose_logs?: boolean,
 }
 
 /**
@@ -95,6 +96,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             mute: {type: "integer", nullable: true},
             archive: {type: "boolean", nullable: true},
             unban: {type: "boolean", nullable: true},
+            verbose_logs: {type: "boolean", nullable: true},
         },
         additionalProperties: false,
     },

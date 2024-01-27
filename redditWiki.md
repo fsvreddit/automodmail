@@ -174,6 +174,12 @@ The following placeholders are all supported:
 
 The three mod_action placeholders will only work if a mod_action check is present in the rule. 
 
+## Debug options
+
+If you add `verbose_logs: true` to any rule, the app will reply with a private mod note with information about why each check in a rule passed or failed. This can be useful when testing rules or trying to work out why a rule isn't working. I recommend only using this for short periods, maybe even just in test subreddits, because when any rule has verbose_logs turned on the app will respond to EVERY new modmail.
+
+More than one rule can have verbose_logs enabled at a time.
+
 ## "Signoff" for responses
 
 In the configuration screen, you can also specify a "signoff" footer to be included on all autoresponses. It's recommended that you include one of these and use it to make users aware that the response is automatic and that they can reply to get more information from a human.

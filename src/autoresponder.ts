@@ -1,7 +1,7 @@
-import {OnTriggerEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
+import {OnTriggerEvent, ScheduledJobEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, parseRules} from "./config.js";
-import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow} from "date-fns";
+import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
 import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
@@ -21,6 +21,15 @@ interface RuleMatchContext {
     modActionTargetPermalink?: string,
     modActionTargetKind?: "post" | "comment",
     verboseLogs: string[],
+}
+
+interface ModmailAction {
+    conversationId: string,
+    username: string,
+    reply?: string,
+    mute?: number
+    archive?: boolean,
+    unban?: boolean,
 }
 
 /**
@@ -146,6 +155,14 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 
     const firstMatchedRule = matchedRules[0];
 
+    const action: ModmailAction = {
+        conversationId: conversationResponse.conversation.id,
+        username: event.messageAuthor.name,
+        archive: firstMatchedRule.archive,
+        mute: firstMatchedRule.mute,
+        unban: firstMatchedRule.unban,
+    };
+
     if (firstMatchedRule.reply) {
         let replyMessage = firstMatchedRule.reply;
 
@@ -177,33 +194,62 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
         }
 
+        action.reply = replyMessage;
+    }
+
+    const sendAfterDelay = await context.settings.get<number>("secondsDelayBeforeSend") ?? 0;
+    if (sendAfterDelay) {
+        console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
+        await context.scheduler.runJob({
+            name: "actOnMessageAfterDelay",
+            data: {action},
+            runAt: addSeconds(new Date(), sendAfterDelay),
+        });
+    } else {
+        await actOnRule(action, context);
+    }
+}
+
+async function actOnRule (action: ModmailAction, context: TriggerContext) {
+    if (action.reply) {
         await context.reddit.modMail.reply({
-            body: replyMessage,
-            conversationId: conversationResponse.conversation.id,
+            body: action.reply,
+            conversationId: action.conversationId,
             isInternal: false,
             isAuthorHidden: true,
         });
-
-        console.log("Replied to modmail");
     }
 
-    if (firstMatchedRule.mute) {
+    console.log("Replied to modmail");
+
+    if (action.mute) {
         await context.reddit.modMail.muteConversation({
-            conversationId: conversationResponse.conversation.id,
-            numHours: firstMatchedRule.mute * 24,
+            conversationId: action.conversationId,
+            numHours: action.mute * 24,
         });
         console.log("User muted");
     }
 
-    if (firstMatchedRule.archive) {
-        await context.reddit.modMail.archiveConversation(conversationResponse.conversation.id);
+    if (action.archive) {
+        await context.reddit.modMail.archiveConversation(action.conversationId);
         console.log("Conversation archived");
     }
 
-    if (firstMatchedRule.unban) {
-        await context.reddit.unbanUser(event.messageAuthor.name, subreddit.name);
+    if (action.unban) {
+        const subreddit = await context.reddit.getCurrentSubreddit();
+        await context.reddit.unbanUser(action.username, subreddit.name);
         console.log("User unbanned");
     }
+}
+
+export async function actOnMessageAfterDelay (event: ScheduledJobEvent, context: TriggerContext) {
+    if (!event.data) {
+        console.log("Scheduler job's data not assigned");
+        return;
+    }
+
+    const action = event.data.action as ModmailAction;
+    await actOnRule(action, context);
 }
 
 function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verboseLogOutput: string[]) {

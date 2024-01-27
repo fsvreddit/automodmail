@@ -1,5 +1,5 @@
 import {Devvit} from "@devvit/public-api";
-import {onModmailReceiveEvent} from "./autoresponder.js";
+import {actOnMessageAfterDelay, onModmailReceiveEvent} from "./autoresponder.js";
 import {parseRules} from "./config.js";
 import {languageList} from "./i18n.js";
 
@@ -26,6 +26,13 @@ Devvit.addSettings([
         label: "Enter text to accompany all autoresponses",
         helpText: "It is recommended that you use this to inform your users that the reply was automated.",
         defaultValue: "*This is an automatic response. If you need more assistance, please reply to this message and a human moderator will review your request.*",
+    },
+    {
+        type: "number",
+        name: "secondsDelayBeforeSend",
+        label: "Number of seconds to wait before acting on modmails",
+        helpText: "Acts on modmails after a delay, may be useful if you need other modmail bots to run first.",
+        defaultValue: 0,
     },
     {
         type: "group",
@@ -59,6 +66,11 @@ Devvit.addSettings([
 Devvit.addTrigger({
     event: "ModMail",
     onEvent: onModmailReceiveEvent,
+});
+
+Devvit.addSchedulerJob({
+    name: "actOnMessageAfterDelay",
+    onRun: actOnMessageAfterDelay,
 });
 
 Devvit.configure({

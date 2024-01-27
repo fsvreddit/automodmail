@@ -184,6 +184,10 @@ More than one rule can have verbose_logs enabled at a time.
 
 In the configuration screen, you can also specify a "signoff" footer to be included on all autoresponses. It's recommended that you include one of these and use it to make users aware that the response is automatic and that they can reply to get more information from a human.
 
+## Delay before acting on modmails
+
+In the configuration screen, you can specify a number of seconds before acting on modmails. This may be useful if you have other modmail bots (e.g. [Modmail Quick User Summary](https://developers.reddit.com/apps/modmail-userinfo)) that you would prefer runs first.
+
 # Putting it all together
 
 Here are some example rules to provide some inspiration about what is possible.

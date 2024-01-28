@@ -1,5 +1,6 @@
+/* eslint-disable camelcase */
 import {addDays, addMinutes, addMonths, addWeeks, addYears} from "date-fns";
-import {meetsDateThreshold, meetsNumericThreshold} from "./autoresponder.js";
+import {checkTextMatch, meetsDateThreshold, meetsNumericThreshold} from "./autoresponder.js";
 
 test("Within numeric threshold less than", () => {
     const result = meetsNumericThreshold(5, "< 10");
@@ -114,4 +115,37 @@ test("Outside date threshold less than", () => {
 test("Outside date threshold greater than", () => {
     const result = meetsDateThreshold(addDays(new Date(), -5), "> 6 days");
     expect(result).toBeFalsy();
+});
+
+interface SearchTest {
+    matchText: string,
+    method: string,
+    expected: boolean,
+}
+
+test("Search methods", () => {
+    const input = "The quick brown fox";
+
+    const tests: SearchTest[] = [
+        {matchText: "ick", method: "includes", expected: true},
+        {matchText: "boo", method: "includes", expected: false},
+        {matchText: "quick", method: "includes-word", expected: true},
+        {matchText: "ick", method: "includes-word", expected: false},
+        {matchText: "the", method: "starts-with", expected: true},
+        {matchText: "quick", method: "starts-with", expected: false},
+        {matchText: "fox", method: "ends-with", expected: true},
+        {matchText: "quick", method: "ends-with", expected: false},
+        {matchText: "the quick brown fox", method: "full-exact", expected: true},
+        {matchText: "quick", method: "full-exact", expected: false},
+        {matchText: "qu[ia]ck", method: "regex", expected: true},
+        {matchText: "qu[ou]ck", method: "regex", expected: false},
+    ];
+
+    const expected = tests.map(test => ({method: test.method, expected: test.expected, negated: false, result: test.expected}));
+    expected.push(...tests.map(test => ({method: test.method, expected: !test.expected, negated: true, result: !test.expected})));
+
+    const results = tests.map(test => ({method: test.method, expected: test.expected, negated: false, result: checkTextMatch(input, [test.matchText], {search_method: test.method, negate: false, case_sensitive: false})}));
+    results.push(...tests.map(test => ({method: test.method, expected: !test.expected, negated: true, result: checkTextMatch(input, [test.matchText], {search_method: test.method, negate: true, case_sensitive: false})})));
+
+    expect(results).toEqual(expected);
 });

@@ -26,7 +26,7 @@ If you need a string to start with a > character, you must enclose it in quotes 
 
 ## Modmail properties
 
-`subject` matches the subject of the incoming modmail, and performs a case-insensitive match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
+`subject` matches the subject of the incoming modmail, and performs a match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
 
 `subject_regex` and `body_regex` likewise check the subject and body, but this time using regular expressions, which ignore case.
 
@@ -41,6 +41,21 @@ All four of these modmail properties checks can take a single value or an array 
         - comments not showing
 
 All four of these can also support negation e.g. `~subject`. If you use negation, then none of the search terms may match. You can use normal and negated properties together e.g. `body` and `~body` may appear in the same rule, but `body` cannot appear twice.
+
+### Modifiers
+
+`subject` and `body` have optional modifiers to change how the text is matched. These are the same as AutoModerator minus full-text.
+
+* `subject (includes)` will find the text anywhere - e.g. "and" will match the subject "sandwich". This is the default behaviour if no modifier is used.
+* `subject (includes-word)` will only match if the search term matches an entire word.
+* `subject (starts_with)` will only match text at the start of the subject.
+* `subject (ends_with)` will only match text at the start of the subject.
+* `subject (full_exact)` will match the entire subject completely.
+* `subject (regex)` will match using a regular expression. Unlike AutoModerator, this cannot be used in conjunction with one of the other modifiers above but it can be used with the case-sensitive modifier below.
+
+Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case_sensitive)`).
+
+Previous versions of this app used different checks `subject_regex` and `body_regex` instead of modifiers. Old rules that use these will continue to work but I recommend moving to the new syntax.
 
 ## Account properties
 
@@ -89,7 +104,7 @@ There are also four true/false checks on account properties that may be useful: 
     author:
         is_banned: "true"
 
-You can also check the account name. `name` matches the user name exactly, although in a case-insensitive manner. For example:
+You can also check the account name. `name` matches the user name and supports the same modifiers as `subject` and `body` as mentioned above. For example:
 
     author:
         name: "BadUser1234"
@@ -97,15 +112,10 @@ You can also check the account name. `name` matches the user name exactly, altho
     author:
         name: ["BadUser1", "BadUser2"]
 
-Alternatively, you can check the account name using regular expressions:
-
     author:
-        name_regex: "^BadUserTryAgain\d{1,3}$"
+        name (regex, case-sensitive): "^ThrowRA"
 
-    author:
-        name_regex: ["^BadUserTryAgain\d{1,3}$", "^ThrowRA"]
-
-Regular expressions are evaluated in a case insensitive manner.
+Previous versions of this app used a different check (`name_regex`) for regular expression searches. If you have this syntax is in any existing rules then these will continue to work but I recommend moving to the new syntax for simplicity.
 
 ## Mod Action checks
 

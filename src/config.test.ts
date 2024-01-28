@@ -9,24 +9,9 @@ mute: 28
     parseRules(input);
 });
 
-test("Both subject and subject_regex", () => {
-    const input = `---
-subject: [Foo]
-subject_regex: [Bar]
-mute: 28
----`;
-
-    const t = () => {
-        parseRules(input);
-    };
-
-    expect(t).toThrow();
-});
-
 test("Mute for noninteger duration", () => {
     const input = `---
 subject: [Foo]
-subject_regex: [Bar]
 mute: 1.4
 ---`;
 
@@ -53,7 +38,7 @@ mute: 3
 
 test("Valid regex", () => {
     const input = `---
-subject_regex: ["abc[de]f"]
+subject (regex): ["abc[de]f"]
 mute: 28
 ---`;
 
@@ -62,12 +47,13 @@ mute: 28
 
 test("Invalid regex", () => {
     const input = `---
-subject_regex: ["abc[def"]
+subject (regex): ["abc[def"]
 mute: 28
 ---`;
 
     const t = () => {
-        parseRules(input);
+        const rules = parseRules(input);
+        console.log(rules);
     };
 
     expect(t).toThrow();
@@ -179,7 +165,9 @@ mute: 28
 ---`;
 
     const rules = parseRules(input);
-    expect(rules[0].notsubject).toBeDefined();
+    expect(rules[0].subject).toBeDefined();
+    expect(rules[0].subject_options).toBeDefined();
+    expect(rules[0].subject_options?.negate).toBeTruthy();
 });
 
 test("Negated invalid check on rule", () => {
@@ -206,4 +194,63 @@ mute: 28
 
     const rules = parseRules(input);
     expect(rules[0].subject).toEqual(["Hello"]);
+});
+
+test("Search Options (subject)", () => {
+    const input = `---
+subject (regex): Hello
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+    expect(rules[0].subject).toEqual(["Hello"]);
+    expect(rules[0].subject_options).toBeDefined();
+    expect(rules[0].subject_options?.search_method === "regex");
+    expect(rules[0].subject_options?.negate === false);
+    expect(rules[0].subject_options?.case_sensitive === false);
+});
+
+test("Search Options (body)", () => {
+    const input = `---
+body (full-exact, case_sensitive): Hello
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+    expect(rules[0].body).toBeDefined();
+    expect(rules[0].body).toEqual(["Hello"]);
+    expect(rules[0].body_options).toBeDefined();
+    expect(rules[0].body_options?.search_method === "full-exact");
+    expect(rules[0].body_options?.negate === false);
+    expect(rules[0].body_options?.case_sensitive === true);
+});
+
+test("Legacy name regex", () => {
+    const input = `---
+subject: Hello
+author:
+    name_regex: "steve"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.name_options).toBeDefined();
+    expect(rules[0].author?.name_options?.search_method).toEqual("regex");
+});
+
+test("New name regex", () => {
+    const input = `---
+subject: Hello
+author:
+    name (regex): "steve"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.name_options).toBeDefined();
+    expect(rules[0].author?.name_options?.search_method).toEqual("regex");
 });

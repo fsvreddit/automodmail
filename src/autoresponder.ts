@@ -1,11 +1,13 @@
+/* eslint-disable camelcase */
 import {OnTriggerEvent, ScheduledJobEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
-import {ResponseRule, parseRules} from "./config.js";
+import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
 import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
+import RegexEscape from "regex-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -286,7 +288,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
     }
 
     if (rule.subject) {
-        if (!rule.subject.some(val => subject.toLowerCase().includes(val.toLowerCase()))) {
+        if (!checkTextMatch(subject, rule.subject, rule.subject_options)) {
             logDebug(rule.verbose_logs, "Subject does not match.", result.verboseLogs);
             return result;
         } else {
@@ -294,37 +296,8 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
     }
 
-    if (rule.notsubject) {
-        if (rule.notsubject.some(val => subject.toLowerCase().includes(val.toLowerCase()))) {
-            logDebug(rule.verbose_logs, "~subject specified but matched text.", result.verboseLogs);
-            return result;
-        } else {
-            logDebug(rule.verbose_logs, "~subject specified, No matching text found.", result.verboseLogs);
-        }
-    }
-
-    if (rule.subject_regex) {
-        const regexes = rule.subject_regex.map(x => new RegExp(x, "i"));
-        if (!regexes.some(x => x.test(subject))) {
-            logDebug(rule.verbose_logs, "Subject regex does not match", result.verboseLogs);
-            return result;
-        } else {
-            logDebug(rule.verbose_logs, "Subject regex matches", result.verboseLogs);
-        }
-    }
-
-    if (rule.notsubject_regex) {
-        const regexes = rule.notsubject_regex.map(x => new RegExp(x, "i"));
-        if (regexes.some(x => x.test(subject))) {
-            logDebug(rule.verbose_logs, "~subject regex specified but matched text", result.verboseLogs);
-            return result;
-        } else {
-            logDebug(rule.verbose_logs, "~subject regex specified, No matching text found.", result.verboseLogs);
-        }
-    }
-
     if (rule.body) {
-        if (!rule.body.some(val => body.toLowerCase().includes(val.toLowerCase()))) {
+        if (!checkTextMatch(body, rule.body, rule.body_options)) {
             logDebug(rule.verbose_logs, "Body does not match.", result.verboseLogs);
             return result;
         } else {
@@ -332,54 +305,15 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
     }
 
-    if (rule.notbody) {
-        if (rule.notbody.some(val => body.toLowerCase().includes(val.toLowerCase()))) {
-            logDebug(rule.verbose_logs, "~body specified but matched text.", result.verboseLogs);
-            return result;
-        } else {
-            logDebug(rule.verbose_logs, "~body specified, No matching text found.", result.verboseLogs);
-        }
-    }
-
-    if (rule.body_regex) {
-        const regexes = rule.body_regex.map(x => new RegExp(x));
-        if (!regexes.some(x => x.test(body))) {
-            logDebug(rule.verbose_logs, "Body regex does not match", result.verboseLogs);
-            return result;
-        } else {
-            logDebug(rule.verbose_logs, "Body regex matches", result.verboseLogs);
-        }
-    }
-
-    if (rule.notbody_regex) {
-        const regexes = rule.notbody_regex.map(x => new RegExp(x));
-        if (!regexes.some(x => x.test(body))) {
-            logDebug(rule.verbose_logs, "~body regex specified but matched text", result.verboseLogs);
-            return result;
-        } else {
-            logDebug(rule.verbose_logs, "~bubject regex specified, No matching text found.", result.verboseLogs);
-        }
-    }
-
     if (rule.author) {
         if (participant) {
             // Most checks need the user to be not shadowbanned.
             if (rule.author.name) {
-                if (!rule.author.name.some(name => name.toLowerCase() === participant.username.toLowerCase())) {
+                if (!checkTextMatch(name, rule.author.name, rule.author.name_options)) {
                     logDebug(rule.verbose_logs, "Author name doesn't match", result.verboseLogs);
                     return result;
                 } else {
                     logDebug(rule.verbose_logs, "Author name matches", result.verboseLogs);
-                }
-            }
-
-            if (rule.author.name_regex) {
-                const regexes = rule.author.name_regex.map(x => new RegExp(x, "i"));
-                if (!regexes.some(x => x.test(participant.username))) {
-                    logDebug(rule.verbose_logs, "Author name regex doesn't match", result.verboseLogs);
-                    return result;
-                } else {
-                    logDebug(rule.verbose_logs, "Author name regex matches", result.verboseLogs);
                 }
             }
 
@@ -613,5 +547,47 @@ export function meetsDateThreshold (input: Date, threshold: string, defaultOpera
             return comparisonDate >= input;
         default:
             return false;
+    }
+}
+
+export function checkTextMatch (input: string, matchText: string[], options?: SearchOption): boolean {
+    if (!options) {
+        options = {search_method: "includes", negate: false, case_sensitive: false};
+    }
+
+    if (!options.case_sensitive) {
+        input = input.toLowerCase();
+        matchText = matchText.map(item => item.toLowerCase());
+    }
+
+    let result: boolean;
+
+    switch (options.search_method) {
+        case "includes":
+            result = matchText.some(x => input.includes(x));
+            break;
+        case "includes-word":
+            result = matchText.some(x => new RegExp(`\\b${RegexEscape(x)}\\b`).test(input));
+            break;
+        case "starts-with":
+            result = matchText.some(x => input.startsWith(x));
+            break;
+        case "ends-with":
+            result = matchText.some(x => input.endsWith(x));
+            break;
+        case "full-exact":
+            result = matchText.some(x => input === x);
+            break;
+        case "regex":
+            result = matchText.some(x => new RegExp(x).test(input));
+            break;
+        default:
+            throw new Error(`Unexpected search method ${options.search_method ?? "undefined"}`);
+    }
+
+    if (options.negate) {
+        return !result;
+    } else {
+        return result;
     }
 }

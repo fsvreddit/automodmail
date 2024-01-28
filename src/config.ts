@@ -4,19 +4,21 @@ import Ajv, {JSONSchemaType} from "ajv";
 import {dateComparatorPattern, numericComparatorPattern} from "./autoresponder.js";
 import {ModActionType} from "@devvit/public-api";
 
+export interface SearchOption {
+    search_method?: string,
+    case_sensitive?: boolean,
+    negate?: boolean,
+}
+
 export interface ResponseRule {
     subject?: string[],
-    notsubject?: string[],
-    subject_regex?: string[],
-    notsubject_regex?: string[],
+    subject_options?: SearchOption,
     body?: string[],
-    notbody?: string[],
-    body_regex?: string[],
-    notbody_regex?: string[],
+    body_options?: SearchOption,
     moderators_exempt?: boolean,
     author?: {
         name?: string[],
-        name_regex?: string[],
+        name_options?: SearchOption,
         post_karma?: string,
         comment_karma?: string,
         combined_karma?: string,
@@ -43,6 +45,8 @@ export interface ResponseRule {
     verbose_logs?: boolean,
 }
 
+const matchSearchMethod = ["includes", "includes-word", "starts-with", "ends-with", "full-exact", "regex"];
+
 /**
  * Ajv schema used to validate response rules.
  */
@@ -52,19 +56,42 @@ const schema: JSONSchemaType<ResponseRule[]> = {
         type: "object",
         properties: {
             subject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-            notsubject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-            subject_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-            notsubject_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            subject_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
             body: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-            notbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-            body_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-            notbody_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            body_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
             moderators_exempt: {type: "boolean", nullable: true},
             author: {
                 type: "object",
                 properties: {
                     name: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-                    name_regex: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    name_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
                     post_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
                     comment_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
                     combined_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
@@ -113,12 +140,43 @@ export function parseRules (rules?: string): ResponseRule[] {
     }
 
     // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
-    const preprocessedRules = rules
-        .split("\n")
-        .map(line => line.startsWith("~subject") || line.startsWith("~body") ? `not${line.substring(1)}` : line)
-        .join("\n");
+    const preprocessedRules: string[] = [];
+    const searchTypeRegex = /^(~)?(subject|body|(?:\t|\s+)name) ?(?:\((.+)\))?:(.+)$/;
+    for (let line of rules.split("\n")) {
+        if (line.startsWith("subject_regex")) {
+            line = line.replace("subject_regex", "subject (regex)");
+        } else if (line.startsWith("body_regex")) {
+            line = line.replace("body_regex", "body (regex)");
+        } else if (line.trim().startsWith("name_regex")) {
+            line = line.replace("name_regex", "name (regex)");
+        }
 
-    const documents = parseAllDocuments(preprocessedRules, {
+        const matches = line.match(searchTypeRegex);
+        if (matches && matches.length === 5) {
+            const [, negateFlag, searchType, searchOptions, matchData] = matches;
+            const searchOption: SearchOption = {};
+            searchOption.negate = negateFlag === "~";
+            if (searchOptions) {
+                searchOption.search_method = matchSearchMethod.find(x => searchOptions.includes(x));
+                searchOption.case_sensitive = searchOptions.includes("case-sensitive");
+            } else {
+                searchOption.search_method = "includes";
+                searchOption.case_sensitive = false;
+            }
+
+            const leadingSpaces = searchType === "    name" ? "        " : "    ";
+
+            preprocessedRules.push(`${searchType}:${matchData}`);
+            preprocessedRules.push(`${searchType}_options:`);
+            preprocessedRules.push(`${leadingSpaces}search_method: ${JSON.stringify(searchOption.search_method)}`);
+            preprocessedRules.push(`${leadingSpaces}negate: ${JSON.stringify(searchOption.negate)}`);
+            preprocessedRules.push(`${leadingSpaces}case_sensitive: ${JSON.stringify(searchOption.case_sensitive)}`);
+        } else {
+            preprocessedRules.push(line);
+        }
+    }
+
+    const documents = parseAllDocuments(preprocessedRules.join("\n"), {
         strict: true,
     });
 
@@ -131,6 +189,7 @@ export function parseRules (rules?: string): ResponseRule[] {
     const validate = ajv.compile(schema);
 
     if (!validate(parsedRules)) {
+        console.log(parsedRules);
         if (validate.errors) {
             const additionalPropertyItem = validate.errors.find(x => x.keyword === "additionalProperties");
             if (additionalPropertyItem) {
@@ -162,44 +221,20 @@ export function validateRule (rule: ResponseRule): string {
         return "No actions specified. Rule must either reply or mute (or both)";
     }
 
-    if (rule.body_regex) {
+    if (rule.body && rule.body_options && rule.body_options.search_method === "regex") {
         try {
-            if (rule.body_regex) {
-                rule.body_regex.map(x => new RegExp(x));
-            }
+            rule.body.map(x => new RegExp(x));
         } catch {
             return "Invalid body regex";
         }
     }
 
-    if (rule.subject_regex) {
+    if (rule.subject && rule.subject_options && rule.subject_options.search_method === "regex") {
         try {
-            if (rule.subject_regex) {
-                rule.subject_regex.map(x => new RegExp(x));
-            }
+            rule.subject.map(x => new RegExp(x));
         } catch {
             return "Invalid subject regex";
         }
-    }
-
-    if (rule.body && rule.body_regex) {
-        return "You can only specify one of: body, body_regex";
-    }
-
-    if (rule.notbody && rule.notbody_regex) {
-        return "You can only specify one of: ~body, ~body_regex";
-    }
-
-    if (rule.subject && rule.subject_regex) {
-        return "You can only specify one of: subject, subject_regex";
-    }
-
-    if (rule.notsubject && rule.notsubject_regex) {
-        return "You can only specify one of: ~subject, ~subject_regex";
-    }
-
-    if (rule.author && rule.author.name && rule.author.name_regex) {
-        return "You can only specify one of: author.name, author.name_regex";
     }
 
     if (rule.mod_action && !rule.mod_action.mod_action_type && !rule.mod_action.action_reason) {

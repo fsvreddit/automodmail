@@ -115,6 +115,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
 
         for (const rule of rulesWithDebugInfo) {
             debugOutput += "---\n\n";
+            debugOutput += `Priority: ${rule.priority}\n\n`;
             debugOutput += `Rule matched: ${JSON.stringify(rule.ruleMatched)}\n\n`;
             debugOutput += rule.verboseLogs.map(x => `* ${x}`).join("\n");
             debugOutput += "\n\n";

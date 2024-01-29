@@ -224,6 +224,19 @@ mute: 28
     expect(rules[0].body_options?.case_sensitive === true);
 });
 
+test("Invalid search option", () => {
+    const input = `---
+body (reverse-order): Hello
+mute: 28
+---`;
+
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).toThrow();
+});
+
 test("Legacy name regex", () => {
     const input = `---
 subject: Hello

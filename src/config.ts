@@ -189,7 +189,6 @@ export function parseRules (rules?: string): ResponseRule[] {
     const validate = ajv.compile(schema);
 
     if (!validate(parsedRules)) {
-        console.log(parsedRules);
         if (validate.errors) {
             const additionalPropertyItem = validate.errors.find(x => x.keyword === "additionalProperties");
             if (additionalPropertyItem) {

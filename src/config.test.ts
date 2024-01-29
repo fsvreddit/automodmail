@@ -52,8 +52,7 @@ mute: 28
 ---`;
 
     const t = () => {
-        const rules = parseRules(input);
-        console.log(rules);
+        parseRules(input);
     };
 
     expect(t).toThrow();

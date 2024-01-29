@@ -67,7 +67,7 @@ mute: 28
     const rules = parseRules(input);
     const subject = rules[0].subject;
     if (subject) {
-        expect(subject.length).toEqual(1);
+        expect(subject).toHaveLength(1);
         expect(subject[0]).toEqual("Hello");
     } else {
         throw "Didn't parse correctly.";

@@ -310,7 +310,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         if (participant) {
             // Most checks need the user to be not shadowbanned.
             if (rule.author.name) {
-                if (!checkTextMatch(name, rule.author.name, rule.author.name_options)) {
+                if (!checkTextMatch(participant.username, rule.author.name, rule.author.name_options)) {
                     logDebug(rule.verbose_logs, "Author name doesn't match", result.verboseLogs);
                     return result;
                 } else {

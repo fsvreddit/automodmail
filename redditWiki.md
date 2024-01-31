@@ -26,7 +26,7 @@ If you need a string to start with a > character, you must enclose it in quotes 
 
 ## Modmail properties
 
-`subject` matches the subject of the incoming modmail, and performs a case-insensitive match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
+`subject` matches the subject of the incoming modmail, and performs a match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
 
 `subject_regex` and `body_regex` likewise check the subject and body, but this time using regular expressions, which ignore case.
 
@@ -41,6 +41,21 @@ All four of these modmail properties checks can take a single value or an array 
         - comments not showing
 
 All four of these can also support negation e.g. `~subject`. If you use negation, then none of the search terms may match. You can use normal and negated properties together e.g. `body` and `~body` may appear in the same rule, but `body` cannot appear twice.
+
+### Modifiers
+
+`subject` and `body` have optional modifiers to change how the text is matched. These are the same as AutoModerator minus full-text.
+
+* `subject (includes)` will find the text anywhere - e.g. "and" will match the subject "sandwich". This is the default behaviour if no modifier is used.
+* `subject (includes-word)` will only match if the search term matches an entire word.
+* `subject (starts_with)` will only match text at the start of the subject.
+* `subject (ends_with)` will only match text at the start of the subject.
+* `subject (full_exact)` will match the entire subject completely.
+* `subject (regex)` will match using a regular expression. Unlike AutoModerator, this cannot be used in conjunction with one of the other modifiers above but it can be used with the case-sensitive modifier below.
+
+Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case_sensitive)`).
+
+Previous versions of this app used different checks `subject_regex` and `body_regex` instead of modifiers. Old rules that use these will continue to work but I recommend moving to the new syntax.
 
 ## Account properties
 
@@ -62,6 +77,8 @@ The tool supports four threshold checks: `post_karma`, `comment_karma`, `combine
 
     account_age: "< 6 months"
 
+    account_age: "> 2 week"
+
     account_age: "> 3 days"
 
 Along with the four threshold checks, like AutoModerator this app supports the `satisfy_any_threshold` check. If `satisfy_any_threshold` is set to "true", the rule will pass if any of the checks pass, but if it is set to "false" then all must match e.g. this ruleset would pass if either the account age was under a year old, or the comment karma under 1000. If `satisfy_any_threshold` isn't specified, it defaults to false.
@@ -70,6 +87,8 @@ Along with the four threshold checks, like AutoModerator this app supports the `
         account_age: "< 1 year"
         comment_karma: "< 1000"
         satisfy_any_threshold: "true"
+
+It is unlikely that "=" checks will be useful for many rules, especially for dates.
 
 ### Other account properties
 
@@ -85,7 +104,7 @@ There are also four true/false checks on account properties that may be useful: 
     author:
         is_banned: "true"
 
-You can also check the account name. `name` matches the user name exactly, although in a case-insensitive manner. For example:
+You can also check the account name. `name` matches the user name and supports the same modifiers as `subject` and `body` as mentioned above. For example:
 
     author:
         name: "BadUser1234"
@@ -93,15 +112,10 @@ You can also check the account name. `name` matches the user name exactly, altho
     author:
         name: ["BadUser1", "BadUser2"]
 
-Alternatively, you can check the account name using regular expressions:
-
     author:
-        name_regex: "^BadUserTryAgain\d{1,3}$"
+        name (regex, case-sensitive): "^ThrowRA"
 
-    author:
-        name_regex: ["^BadUserTryAgain\d{1,3}$", "^ThrowRA"]
-
-Regular expressions are evaluated in a case insensitive manner.
+Previous versions of this app used a different check (`name_regex`) for regular expression searches. If you have this syntax is in any existing rules then these will continue to work but I recommend moving to the new syntax for simplicity.
 
 ## Mod Action checks
 
@@ -131,6 +145,14 @@ Like AutoModerator, this app supports the `priority` attribute against rules. Ru
 
 Like with AutoModerator, "highest priority" means the rule with the highest numeric value, so Priority 10 would run before Priority 1, and rules without priority would run before Priority -1.
 
+## Moderator Exemptions
+
+Rules will not match if a moderator writes in to their own sub's modmail unless this is specified against the rule.
+
+`moderators_exempt: false`
+
+If you specify `moderators_exempt: true`, this will behave as if `moderators_exempt` isn't specified at all.
+
 ## Actions to take
 
 If all checks on a rule pass, there are a number of actions that can be taken: `reply`, `mute` and `archive`.
@@ -144,11 +166,11 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
         Like AutoModerator, this format is supported too.
 
-`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`.
+`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`. Note: Due to an issue with the Community Apps platform, all mutes will be for three days until the issue is fixed.
 
 `archive` archives the modmail after sending a reply. You cannot use `archive` without a `reply` or `mute`. E.g. `archive: "true"`.
 
-`unban` unbans the user (if they were already banned). E.g. `unban: "true"`. 
+`unban` unbans the user (if they were already banned). E.g. `unban: "true"`.
 
 ### Placeholders on replies
 
@@ -162,13 +184,23 @@ The following placeholders are all supported:
 
 `{{mod_action_target_permalink}}` - the link to the post or comment (if applicable) that the mod action was taken against.
 
-`{{mod_action_target_kind}}` - Either "post" or "comment".
+`{{mod_action_target_kind}}` - Either "post" or "comment". Like the timespan above, this will respect the language chosen. You can also choose your own terms for "post" and "comment" in the configuration options if you need to support further languages, or if you think a better translation could have been used (if you do have any suggestions on improving translations, please contact /u/fsv!)
 
 The three mod_action placeholders will only work if a mod_action check is present in the rule. 
+
+## Debug options
+
+If you add `verbose_logs: true` to any rule, the app will reply with a private mod note with information about why each check in a rule passed or failed. This can be useful when testing rules or trying to work out why a rule isn't working. I recommend only using this for short periods, maybe even just in test subreddits, because when any rule has verbose_logs turned on the app will respond to EVERY new modmail.
+
+More than one rule can have verbose_logs enabled at a time, but it is generally going to be most useful to enable for a single rule at a time and only while testing it.
 
 ## "Signoff" for responses
 
 In the configuration screen, you can also specify a "signoff" footer to be included on all autoresponses. It's recommended that you include one of these and use it to make users aware that the response is automatic and that they can reply to get more information from a human.
+
+## Delay before acting on modmails
+
+In the configuration screen, you can specify a number of seconds before acting on modmails. This may be useful if you have other modmail bots (e.g. [Modmail Quick User Summary](https://developers.reddit.com/apps/modmail-userinfo)) that you would prefer runs first.
 
 # Putting it all together
 
@@ -254,3 +286,7 @@ Due to limitations in the Devvit API, I am currently unable to support the follo
 
 * Whether the user's ban was temporary or permanent, what the ban reason was, or how long it has left to run
 * Subreddit-specific comment or post karma
+
+# Source code and licence
+
+Modmail Automator is free and open source under the BSD three-clause licence. You can find it on Github [here](https://github.com/fsvreddit/automodmail).

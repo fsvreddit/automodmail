@@ -1,29 +1,31 @@
 import {Locale} from "date-fns";
 import {enUS, es, fr, pt, ro, it, de, tr, nl, da, sv, fi, pl, ru, hr, nb} from "date-fns/locale";
 
-interface Language {
+export interface Language {
     languageName: string,
     isoCode: string,
     locale: Locale,
+    postWord: string,
+    commentWord: string,
 }
 
 export const languageList: Language[] = [
-    {languageName: "English", isoCode: "en", locale: enUS},
-    {languageName: "dansk", isoCode: "da", locale: da},
-    {languageName: "Deutsch", isoCode: "de", locale: de},
-    {languageName: "español", isoCode: "es", locale: es},
-    {languageName: "suomi", isoCode: "fi", locale: fi},
-    {languageName: "français", isoCode: "fr", locale: fr},
-    {languageName: "hrvatski", isoCode: "hr", locale: hr},
-    {languageName: "italiano", isoCode: "it", locale: it},
-    {languageName: "Nederlands", isoCode: "nl", locale: nl},
-    {languageName: "Bokmål", isoCode: "nb", locale: nb},
-    {languageName: "polski", isoCode: "pl", locale: pl},
-    {languageName: "português", isoCode: "pt", locale: pt},
-    {languageName: "română", isoCode: "ro", locale: ro},
-    {languageName: "русский", isoCode: "ru", locale: ru},
-    {languageName: "Svenska", isoCode: "sv", locale: sv},
-    {languageName: "Türkçe", isoCode: "tr", locale: tr},
+    {languageName: "English", isoCode: "en", locale: enUS, postWord: "post", commentWord: "comment"},
+    {languageName: "dansk", isoCode: "da", locale: da, postWord: "indlæg", commentWord: "kommentar"},
+    {languageName: "Deutsch", isoCode: "de", locale: de, postWord: "Beitrag", commentWord: "Kommentar"},
+    {languageName: "español", isoCode: "es", locale: es, postWord: "publicación", commentWord: "comentario"},
+    {languageName: "suomi", isoCode: "fi", locale: fi, postWord: "viesti", commentWord: "kommentti"},
+    {languageName: "français", isoCode: "fr", locale: fr, postWord: "post", commentWord: "commentaire"},
+    {languageName: "hrvatski", isoCode: "hr", locale: hr, postWord: "objava", commentWord: "komentar"},
+    {languageName: "italiano", isoCode: "it", locale: it, postWord: "post", commentWord: "inviato"},
+    {languageName: "Nederlands", isoCode: "nl", locale: nl, postWord: "post", commentWord: "reactie"},
+    {languageName: "Bokmål", isoCode: "nb", locale: nb, postWord: "post", commentWord: "kommentar"},
+    {languageName: "polski", isoCode: "pl", locale: pl, postWord: "post", commentWord: "komentarz"},
+    {languageName: "português", isoCode: "pt", locale: pt, postWord: "post", commentWord: "comentário"},
+    {languageName: "română", isoCode: "ro", locale: ro, postWord: "post", commentWord: "comentariu"},
+    {languageName: "русский", isoCode: "ru", locale: ru, postWord: "пост", commentWord: "комментарий"},
+    {languageName: "Svenska", isoCode: "sv", locale: sv, postWord: "inlägg", commentWord: "kommentar"},
+    {languageName: "Türkçe", isoCode: "tr", locale: tr, postWord: "gönder", commentWord: "yorum"},
 ];
 
 /**
@@ -31,10 +33,10 @@ export const languageList: Language[] = [
  * @param localeString The ISO country code
  * @returns A date-fns Locale object
  */
-export function localeFromString (localeString: string): Locale {
+export function languageFromString (localeString: string): Language {
     const language = languageList.find(language => language.isoCode === localeString);
     if (language) {
-        return language.locale;
+        return language;
     } else {
         throw `Language code ${localeString} not supported`;
     }

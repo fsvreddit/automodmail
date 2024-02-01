@@ -3,7 +3,7 @@ import {OnTriggerEvent, ScheduledJobEvent, Subreddit, TriggerContext, User} from
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
-import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
+import {isBanned, isContributor, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
@@ -98,16 +98,18 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         // Ignore - leave participant variable undefined.
     }
 
+    if (!firstMessage.author) {
+        console.log("First message's author is not defined.");
+        return;
+    }
+
+    const {isAdmin, isMod} = firstMessage.author;
+
     const subject = conversationResponse.conversation.subject ?? "";
     const body = firstMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
 
-    let userIsModerator = false;
-    if (participant) {
-        userIsModerator = await isModerator(context, subreddit.name, participant.username);
-    }
-
-    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant, userIsModerator)));
+    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant, isMod, isAdmin)));
 
     const rulesWithDebugInfo = matchedRules.filter(x => x.verboseLogs.length > 0);
     if (rulesWithDebugInfo.length > 0) {
@@ -272,7 +274,7 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined, userIsModerator: boolean): Promise<RuleMatchContext> {
+async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -285,6 +287,11 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
 
     if (rule.moderators_exempt !== false && userIsModerator) {
         logDebug(rule.verbose_logs, "Rule exempts moderators, and user is a mod.", result.verboseLogs);
+        return result;
+    }
+
+    if (rule.admins_exempt !== false && userIsAdmin) {
+        logDebug(rule.verbose_logs, "Rule exempts admins, and user is an admin.", result.verboseLogs);
         return result;
     }
 

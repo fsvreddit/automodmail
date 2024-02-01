@@ -16,6 +16,7 @@ export interface ResponseRule {
     body?: string[],
     body_options?: SearchOption,
     moderators_exempt?: boolean,
+    admins_exempt?: boolean,
     author?: {
         name?: string[],
         name_options?: SearchOption,
@@ -78,6 +79,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 additionalProperties: false,
             },
             moderators_exempt: {type: "boolean", nullable: true},
+            admins_exempt: {type: "boolean", nullable: true},
             author: {
                 type: "object",
                 properties: {

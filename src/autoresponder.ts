@@ -8,6 +8,7 @@ import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
+import {AppSetting} from "./settings.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -82,7 +83,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         return;
     }
 
-    const rulesYaml = await context.settings.get<string>("rules");
+    const rulesYaml = await context.settings.get<string>(AppSetting.Rules);
     const rules = parseRules(rulesYaml);
 
     if (rules.length === 0) {
@@ -171,7 +172,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     if (firstMatchedRule.reply) {
         let replyMessage = firstMatchedRule.reply;
 
-        const signoff = await context.settings.get<string>("signoff");
+        const signoff = await context.settings.get<string>(AppSetting.Signoff);
         if (signoff) {
             replyMessage += `\n\n${signoff}`;
         }
@@ -180,7 +181,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
         let language: Language | undefined;
         if (firstMatchedRule.modActionDate || firstMatchedRule.modActionTargetKind) {
-            const localeResult = await context.settings.get<string[]>("locale") ?? ["enUS"];
+            const localeResult = await context.settings.get<string[]>(AppSetting.Locale) ?? ["enUS"];
             language = languageFromString(localeResult[0]);
         }
 
@@ -191,7 +192,8 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", firstMatchedRule.modActionTargetPermalink);
         }
         if (firstMatchedRule.modActionTargetKind && language) {
-            let targetKind = await context.settings.get<string>(`${firstMatchedRule.modActionTargetKind}String`);
+            const settingsKey = firstMatchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
+            let targetKind = await context.settings.get<string>(settingsKey);
             if (!targetKind) {
                 targetKind = firstMatchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
             }
@@ -202,7 +204,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         action.reply = replyMessage;
     }
 
-    const sendAfterDelay = await context.settings.get<number>("secondsDelayBeforeSend") ?? 0;
+    const sendAfterDelay = await context.settings.get<number>(AppSetting.SecondsDelayBeforeSend) ?? 0;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({

@@ -13,13 +13,19 @@ export interface SearchOption {
 export interface ResponseRule {
     subject?: string[],
     subject_options?: SearchOption,
+    notsubject?: string[],
+    notsubject_options?: SearchOption,
     body?: string[],
     body_options?: SearchOption,
+    notbody?: string[],
+    notbody_options?: SearchOption,
     moderators_exempt?: boolean,
     admins_exempt?: boolean,
     author?: {
         name?: string[],
         name_options?: SearchOption,
+        notname?: string[],
+        notname_options?: SearchOption,
         post_karma?: string,
         comment_karma?: string,
         combined_karma?: string,
@@ -67,8 +73,30 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
+            notsubject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notsubject_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
             body: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             body_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
+            notbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notbody_options: {
                 type: "object",
                 properties: {
                     search_method: {type: "string", nullable: true, enum: matchSearchMethod},
@@ -85,6 +113,17 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 properties: {
                     name: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
                     name_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
+                    notname: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    notname_options: {
                         type: "object",
                         properties: {
                             search_method: {type: "string", nullable: true, enum: matchSearchMethod},
@@ -143,7 +182,7 @@ export function parseRules (rules?: string): ResponseRule[] {
 
     // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
     const preprocessedRules: string[] = [];
-    const searchTypeRegex = /^(~)?(subject|body|(?:\t|\s+)name) ?(?:\((.+)\))?:(.+)$/;
+    const searchTypeRegex = /^(subject|body|notsubject|notbody|(?:\t|\s+)(?:name|notname)) ?(?:\((.+)\))?:(.+)$/;
     for (let line of rules.split("\n")) {
         if (line.startsWith("subject_regex")) {
             line = line.replace("subject_regex", "subject (regex)");
@@ -151,13 +190,15 @@ export function parseRules (rules?: string): ResponseRule[] {
             line = line.replace("body_regex", "body (regex)");
         } else if (line.trim().startsWith("name_regex")) {
             line = line.replace("name_regex", "name (regex)");
+        } else if (line.trim().startsWith("~")) {
+            line = line.replace("~", "not");
         }
 
         const matches = line.match(searchTypeRegex);
-        if (matches && matches.length === 5) {
-            const [, negateFlag, searchType, searchOptions, matchData] = matches;
+        if (matches && matches.length === 4) {
+            const [, searchType, searchOptions, matchData] = matches;
             const searchOption: SearchOption = {};
-            searchOption.negate = negateFlag === "~";
+            searchOption.negate = searchType === "notsubject" || searchType === "notbody" || searchType === "    notname";
             if (searchOptions) {
                 searchOption.search_method = matchSearchMethod.find(x => searchOptions.includes(x));
                 searchOption.case_sensitive = searchOptions.includes("case-sensitive");
@@ -166,7 +207,7 @@ export function parseRules (rules?: string): ResponseRule[] {
                 searchOption.case_sensitive = false;
             }
 
-            const leadingSpaces = searchType === "    name" ? "        " : "    ";
+            const leadingSpaces = searchType === "    name" || searchType === "    notname" ? "        " : "    ";
 
             preprocessedRules.push(`${searchType}:${matchData}`);
             preprocessedRules.push(`${searchType}_options:`);

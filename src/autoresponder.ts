@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import {OnTriggerEvent, ScheduledJobEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
+import {OnTriggerEvent, ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
@@ -109,7 +109,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     const body = firstMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
 
-    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant, isMod, isAdmin)));
+    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit.name, rule, subject, body, participant, isMod, isAdmin)));
 
     const rulesWithDebugInfo = matchedRules.filter(x => x.verboseLogs.length > 0);
     if (rulesWithDebugInfo.length > 0) {
@@ -274,7 +274,7 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
+export async function checkRule (context: TriggerContext | undefined, subredditName: string, rule: ResponseRule, subject: string, body: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -304,12 +304,30 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
     }
 
+    if (rule.notsubject) {
+        if (!checkTextMatch(subject, rule.notsubject, rule.notsubject_options)) {
+            logDebug(rule.verbose_logs, "Negated subject matched, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Negated subject did not match, so rule passes.", result.verboseLogs);
+        }
+    }
+
     if (rule.body) {
         if (!checkTextMatch(body, rule.body, rule.body_options)) {
             logDebug(rule.verbose_logs, "Body does not match.", result.verboseLogs);
             return result;
         } else {
             logDebug(rule.verbose_logs, "Body matched successfully.", result.verboseLogs);
+        }
+    }
+
+    if (rule.notbody) {
+        if (!checkTextMatch(subject, rule.notbody, rule.notbody_options)) {
+            logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Negated body did not match, so rule passes.", result.verboseLogs);
         }
     }
 
@@ -322,6 +340,15 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                     return result;
                 } else {
                     logDebug(rule.verbose_logs, "Author name matches", result.verboseLogs);
+                }
+            }
+
+            if (rule.author.notname) {
+                if (!checkTextMatch(participant.username, rule.author.notname, rule.author.notname_options)) {
+                    logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "Negated author name does not match, so rule passes", result.verboseLogs);
                 }
             }
 
@@ -360,8 +387,8 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 logDebug(rule.verbose_logs, `Satisfy any threshold is set to ${JSON.stringify(rule.author.satisfy_any_threshold)} therefore threshold checks passed.`, result.verboseLogs);
             }
 
-            if (rule.author.is_banned !== undefined) {
-                const userIsBanned = await isBanned(context, subreddit.name, participant.username);
+            if (context && rule.author.is_banned !== undefined) {
+                const userIsBanned = await isBanned(context, subredditName, participant.username);
                 if (rule.author.is_banned !== userIsBanned) {
                     logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
                     return result;
@@ -370,8 +397,8 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 }
             }
 
-            if (rule.author.is_contributor !== undefined) {
-                const userIsContributor = await isContributor(context, subreddit.name, participant.username);
+            if (context && rule.author.is_contributor !== undefined) {
+                const userIsContributor = await isContributor(context, subredditName, participant.username);
                 if (rule.author.is_contributor !== userIsContributor) {
                     logDebug(rule.verbose_logs, "Approved User check failed, skipping rule.", result.verboseLogs);
                     return result;
@@ -390,7 +417,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
             }
 
             if (rule.author.flair_text || rule.author.flair_css_class || rule.author.flair_css_class) {
-                const flair = await participant.getUserFlairBySubreddit(subreddit.name);
+                const flair = await participant.getUserFlairBySubreddit(subredditName);
                 if (!flair) {
                     logDebug(rule.verbose_logs, "User does not have flair, but flair checks exist. Skipping rule.", result.verboseLogs);
                     return result;
@@ -420,9 +447,9 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
     }
 
-    if (rule.mod_action && participant) {
+    if (context && rule.mod_action && participant) {
         let modLog = await context.reddit.getModerationLog({
-            subredditName: subreddit.name,
+            subredditName,
             moderatorUsernames: rule.mod_action.moderator_name,
             type: rule.mod_action.mod_action_type,
             limit: 200,

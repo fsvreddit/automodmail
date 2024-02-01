@@ -209,11 +209,13 @@ export function parseRules (rules?: string): ResponseRule[] {
 
             const leadingSpaces = searchType === "    name" || searchType === "    notname" ? "        " : "    ";
 
-            preprocessedRules.push(`${searchType}:${matchData}`);
-            preprocessedRules.push(`${searchType}_options:`);
-            preprocessedRules.push(`${leadingSpaces}search_method: ${JSON.stringify(searchOption.search_method)}`);
-            preprocessedRules.push(`${leadingSpaces}negate: ${JSON.stringify(searchOption.negate)}`);
-            preprocessedRules.push(`${leadingSpaces}case_sensitive: ${JSON.stringify(searchOption.case_sensitive)}`);
+            preprocessedRules.push(
+                `${searchType}:${matchData}`,
+                `${searchType}_options:`,
+                `${leadingSpaces}search_method: ${JSON.stringify(searchOption.search_method)}`,
+                `${leadingSpaces}negate: ${JSON.stringify(searchOption.negate)}`,
+                `${leadingSpaces}case_sensitive: ${JSON.stringify(searchOption.case_sensitive)}`
+            );
         } else {
             preprocessedRules.push(line);
         }

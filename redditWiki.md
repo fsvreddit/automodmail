@@ -145,13 +145,15 @@ Like AutoModerator, this app supports the `priority` attribute against rules. Ru
 
 Like with AutoModerator, "highest priority" means the rule with the highest numeric value, so Priority 10 would run before Priority 1, and rules without priority would run before Priority -1.
 
-## Moderator Exemptions
+## Moderator and Admin Exemptions
 
-Rules will not match if a moderator writes in to their own sub's modmail unless this is specified against the rule.
+Rules will not match if a moderator of a sub or an admin writes in to modmail unless this is specified against the rule.
 
 `moderators_exempt: false`
 
 If you specify `moderators_exempt: true`, this will behave as if `moderators_exempt` isn't specified at all.
+
+`admins_exempt: false` has the same effect for admins.
 
 ## Actions to take
 

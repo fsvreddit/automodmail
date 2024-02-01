@@ -271,11 +271,43 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
+    if (rule.notbody && rule.notbody_options && rule.notbody_options.search_method === "regex") {
+        try {
+            rule.notbody.map(x => new RegExp(x));
+        } catch {
+            return "Invalid ~body regex";
+        }
+    }
+
     if (rule.subject && rule.subject_options && rule.subject_options.search_method === "regex") {
         try {
             rule.subject.map(x => new RegExp(x));
         } catch {
             return "Invalid subject regex";
+        }
+    }
+
+    if (rule.notsubject && rule.notsubject_options && rule.notsubject_options.search_method === "regex") {
+        try {
+            rule.notsubject.map(x => new RegExp(x));
+        } catch {
+            return "Invalid ~subject regex";
+        }
+    }
+
+    if (rule.author && rule.author.name && rule.author.name_options && rule.author.name_options.search_method === "regex") {
+        try {
+            rule.author.name.map(x => new RegExp(x));
+        } catch {
+            return "Invalid author name regex";
+        }
+    }
+
+    if (rule.author && rule.author.notname && rule.author.notname_options && rule.author.notname_options.search_method === "regex") {
+        try {
+            rule.author.notname.map(x => new RegExp(x));
+        } catch {
+            return "Invalid author ~name regex";
         }
     }
 

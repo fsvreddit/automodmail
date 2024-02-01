@@ -1,8 +1,8 @@
 import {Devvit} from "@devvit/public-api";
 import {actOnMessageAfterDelay, onModmailReceiveEvent} from "./autoresponder.js";
-import {devvitSettings} from "./settings.js";
+import {appSettings} from "./settings.js";
 
-Devvit.addSettings(devvitSettings);
+Devvit.addSettings(appSettings);
 
 Devvit.addTrigger({
     event: "ModMail",

@@ -11,7 +11,7 @@ export enum AppSetting {
     CommentString = "commentString",
 }
 
-export const devvitSettings: SettingsFormField[] = [
+export const appSettings: SettingsFormField[] = [
     {
         type: "paragraph",
         name: AppSetting.Rules,

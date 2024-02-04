@@ -110,9 +110,21 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
     const body = firstMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
 
-    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit.name, rule, subject, body, participant, isMod, isAdmin)));
+    const processedRules: RuleMatchContext[] = [];
+    // Sort rules by priority descending.
+    rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+    for (const rule of rules) {
+        // eslint-disable-next-line no-await-in-loop
+        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, participant, isMod, isAdmin);
+        processedRules.push(ruleResult);
 
-    const rulesWithDebugInfo = matchedRules.filter(x => x.verboseLogs.length > 0);
+        if (ruleResult.ruleMatched) {
+            // Stop processing more rules - we have a match.
+            break;
+        }
+    }
+
+    const rulesWithDebugInfo = processedRules.filter(x => x.verboseLogs.length > 0);
     if (rulesWithDebugInfo.length > 0) {
         let debugOutput = "Modmail Automator logs\n\n";
 
@@ -149,28 +161,25 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         });
     }
 
-    // Sort by priority descending, take top 1.
-    matchedRules = matchedRules.filter(x => x.ruleMatched).sort((a, b) => b.priority - a.priority);
+    const matchedRule = processedRules.find(x => x.ruleMatched);
 
-    if (matchedRules.length === 0) {
+    if (!matchedRule) {
         console.log("No rules matched.");
         return;
     }
 
     console.log("Matched a rule.");
 
-    const firstMatchedRule = matchedRules[0];
-
     const action: ModmailAction = {
         conversationId: conversationResponse.conversation.id,
         username: event.messageAuthor.name,
-        archive: firstMatchedRule.archive,
-        mute: firstMatchedRule.mute,
-        unban: firstMatchedRule.unban,
+        archive: matchedRule.archive,
+        mute: matchedRule.mute,
+        unban: matchedRule.unban,
     };
 
-    if (firstMatchedRule.reply) {
-        let replyMessage = firstMatchedRule.reply;
+    if (matchedRule.reply) {
+        let replyMessage = matchedRule.reply;
 
         const signoff = await context.settings.get<string>(AppSetting.Signoff);
         if (signoff) {
@@ -180,22 +189,22 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
         let language: Language | undefined;
-        if (firstMatchedRule.modActionDate || firstMatchedRule.modActionTargetKind) {
+        if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
             const localeResult = await context.settings.get<string[]>(AppSetting.Locale) ?? ["enUS"];
             language = languageFromString(localeResult[0]);
         }
 
-        if (firstMatchedRule.modActionDate && language) {
-            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(firstMatchedRule.modActionDate, {locale: language.locale}));
+        if (matchedRule.modActionDate && language) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, {locale: language.locale}));
         }
-        if (firstMatchedRule.modActionTargetPermalink) {
-            replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", firstMatchedRule.modActionTargetPermalink);
+        if (matchedRule.modActionTargetPermalink) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
         }
-        if (firstMatchedRule.modActionTargetKind && language) {
-            const settingsKey = firstMatchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
+        if (matchedRule.modActionTargetKind && language) {
+            const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
             let targetKind = await context.settings.get<string>(settingsKey);
             if (!targetKind) {
-                targetKind = firstMatchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
+                targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
             }
 
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);

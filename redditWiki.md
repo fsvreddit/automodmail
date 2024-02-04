@@ -139,7 +139,7 @@ Sub properties are:
 
 ## Priority
 
-Like AutoModerator, this app supports the `priority` attribute against rules. Rules without a priority are treated as priority 0. If more than one rule matches the incoming modmail, the actions on the rule with he highest priority are taken and others ignored.
+Like AutoModerator, this app supports the `priority` attribute against rules. Rules without a priority are treated as priority 0. If more than one rule matches the incoming modmail, the actions on the rule with the highest priority are taken and others ignored.
 
 `priority: 10`
 

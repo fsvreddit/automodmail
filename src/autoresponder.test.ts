@@ -151,6 +151,26 @@ test("Search methods", () => {
     expect(results).toEqual(expected);
 });
 
+test("Case sensitivity on Regex, Matching Case sensitive", () => {
+    const result = checkTextMatch("Quick", ["Quick"], {case_sensitive: true, negate: false, search_method: "regex"});
+    expect(result).toBeTruthy();
+});
+
+test("Case sensitivity on Regex, Matching Case insensitive", () => {
+    const result = checkTextMatch("Quick", ["quick"], {case_sensitive: false, negate: false, search_method: "regex"});
+    expect(result).toBeTruthy();
+});
+
+test("Case sensitivity on Regex, Non-matching Case Sensitive", () => {
+    const result = checkTextMatch("Quick", ["quick"], {case_sensitive: true, negate: false, search_method: "regex"});
+    expect(result).toBeFalsy();
+});
+
+test("Case sensitivity on Regex, Non-matching Case insensitive", () => {
+    const result = checkTextMatch("Quick", ["quick"], {case_sensitive: false, negate: false, search_method: "regex"});
+    expect(result).toBeTruthy();
+});
+
 test("Both subject and negated subject", async () => {
     const rule: ResponseRule = {
         subject: ["hello"],

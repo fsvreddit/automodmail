@@ -592,7 +592,7 @@ export function checkTextMatch (input: string, matchText: string[], options?: Se
         options = {search_method: "includes", negate: false, case_sensitive: false};
     }
 
-    if (!options.case_sensitive) {
+    if (options.search_method !== "regex" && !options.case_sensitive) {
         input = input.toLowerCase();
         matchText = matchText.map(item => item.toLowerCase());
     }
@@ -616,7 +616,11 @@ export function checkTextMatch (input: string, matchText: string[], options?: Se
             result = matchText.some(x => input === x);
             break;
         case "regex":
-            result = matchText.some(x => new RegExp(x).test(input));
+            if (options.case_sensitive) {
+                result = matchText.some(x => new RegExp(x).test(input));
+            } else {
+                result = matchText.some(x => new RegExp(x, "i").test(input));
+            }
             break;
         default:
             throw new Error(`Unexpected search method ${options.search_method ?? "undefined"}`);

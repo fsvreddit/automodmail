@@ -311,7 +311,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             logDebug(rule.verbose_logs, "Negated subject matched, so rule fails", result.verboseLogs);
             return result;
         } else {
-            logDebug(rule.verbose_logs, "Negated subject did not match, so rule passes.", result.verboseLogs);
+            logDebug(rule.verbose_logs, "Negated subject did not match, so check passes.", result.verboseLogs);
         }
     }
 
@@ -329,7 +329,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
             return result;
         } else {
-            logDebug(rule.verbose_logs, "Negated body did not match, so rule passes.", result.verboseLogs);
+            logDebug(rule.verbose_logs, "Negated body did not match, so check passes.", result.verboseLogs);
         }
     }
 
@@ -350,7 +350,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
                     return result;
                 } else {
-                    logDebug(rule.verbose_logs, "Negated author name does not match, so rule passes", result.verboseLogs);
+                    logDebug(rule.verbose_logs, "Negated author name does not match, so check passes", result.verboseLogs);
                 }
             }
 

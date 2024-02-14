@@ -164,9 +164,9 @@ mute: 28
 ---`;
 
     const rules = parseRules(input);
-    expect(rules[0].subject).toBeDefined();
-    expect(rules[0].subject_options).toBeDefined();
-    expect(rules[0].subject_options?.negate).toBeTruthy();
+    expect(rules[0].notsubject).toBeDefined();
+    expect(rules[0].notsubject_options).toBeDefined();
+    expect(rules[0].notsubject_options?.negate).toBeTruthy();
 });
 
 test("Negated invalid check on rule", () => {
@@ -265,4 +265,67 @@ mute: 28
     expect(rules[0].author).toBeDefined();
     expect(rules[0].author?.name_options).toBeDefined();
     expect(rules[0].author?.name_options?.search_method).toEqual("regex");
+});
+
+test("Negated name", () => {
+    const input = `---
+subject: Hello
+author:
+    ~name: "spez"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.notname).toEqual(["spez"]);
+    expect(rules[0].author?.notname_options).toBeDefined();
+    expect(rules[0].author?.notname_options?.negate).toBeTruthy();
+});
+
+test("Both subject and ~subject", () => {
+    const input = `---
+subject: Hello
+~subject: Goodbye
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].subject).toEqual(["Hello"]);
+    expect(rules[0].subject_options?.negate).toBeFalsy();
+    expect(rules[0].notsubject).toEqual(["Goodbye"]);
+    expect(rules[0].notsubject_options?.negate).toBeTruthy();
+});
+
+test("Both body and ~body", () => {
+    const input = `---
+body: Hello
+~body: Goodbye
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].body).toEqual(["Hello"]);
+    expect(rules[0].body_options?.negate).toBeFalsy();
+    expect(rules[0].notbody).toEqual(["Goodbye"]);
+    expect(rules[0].notbody_options?.negate).toBeTruthy();
+});
+
+test("Both author name and ~name", () => {
+    const input = `---
+author:
+    name: "spez"
+    ~name: "PossibleCrit"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.name).toEqual(["spez"]);
+    expect(rules[0].author?.name_options?.negate).toBeFalsy();
+    expect(rules[0].author?.notname).toEqual(["PossibleCrit"]);
+    expect(rules[0].author?.notname_options?.negate).toBeTruthy();
 });

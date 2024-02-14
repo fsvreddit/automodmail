@@ -1,6 +1,7 @@
 /* eslint-disable camelcase */
 import {addDays, addMinutes, addMonths, addWeeks, addYears} from "date-fns";
-import {checkTextMatch, meetsDateThreshold, meetsNumericThreshold} from "./autoresponder.js";
+import {checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold} from "./autoresponder.js";
+import {ResponseRule} from "./config.js";
 
 test("Within numeric threshold less than", () => {
     const result = meetsNumericThreshold(5, "< 10");
@@ -148,4 +149,42 @@ test("Search methods", () => {
     results.push(...tests.map(test => ({method: test.method, expected: !test.expected, negated: true, result: checkTextMatch(input, [test.matchText], {search_method: test.method, negate: true, case_sensitive: false})})));
 
     expect(results).toEqual(expected);
+});
+
+test("Case sensitivity on Regex, Matching Case sensitive", () => {
+    const result = checkTextMatch("Quick", ["Quick"], {case_sensitive: true, negate: false, search_method: "regex"});
+    expect(result).toBeTruthy();
+});
+
+test("Case sensitivity on Regex, Matching Case insensitive", () => {
+    const result = checkTextMatch("Quick", ["quick"], {case_sensitive: false, negate: false, search_method: "regex"});
+    expect(result).toBeTruthy();
+});
+
+test("Case sensitivity on Regex, Non-matching Case Sensitive", () => {
+    const result = checkTextMatch("Quick", ["quick"], {case_sensitive: true, negate: false, search_method: "regex"});
+    expect(result).toBeFalsy();
+});
+
+test("Case sensitivity on Regex, Non-matching Case insensitive", () => {
+    const result = checkTextMatch("Quick", ["quick"], {case_sensitive: false, negate: false, search_method: "regex"});
+    expect(result).toBeTruthy();
+});
+
+test("Both subject and negated subject", async () => {
+    const rule: ResponseRule = {
+        subject: ["hello"],
+        subject_options: {case_sensitive: false, negate: false, search_method: "includes"},
+        notsubject: ["goodbye"],
+        notsubject_options: {case_sensitive: false, negate: true, search_method: "includes"},
+        mute: 3,
+    };
+
+    const resultNotMatching = await checkRule(undefined, "subname", rule, "hello and goodbye", "");
+    expect(resultNotMatching.ruleMatched).toBeFalsy();
+    expect(resultNotMatching.mute).toEqual(3);
+
+    const resultMatching = await checkRule(undefined, "subname", rule, "hello and greetings", "");
+    expect(resultMatching.ruleMatched).toBeTruthy();
+    expect(resultMatching.mute).toEqual(3);
 });

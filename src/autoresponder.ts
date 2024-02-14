@@ -1,13 +1,14 @@
 /* eslint-disable camelcase */
-import {OnTriggerEvent, ScheduledJobEvent, Subreddit, TriggerContext, User} from "@devvit/public-api";
+import {OnTriggerEvent, ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
-import {isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
+import {isBanned, isContributor, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
+import {AppSetting} from "./settings.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -82,7 +83,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         return;
     }
 
-    const rulesYaml = await context.settings.get<string>("rules");
+    const rulesYaml = await context.settings.get<string>(AppSetting.Rules);
     const rules = parseRules(rulesYaml);
 
     if (rules.length === 0) {
@@ -98,18 +99,32 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         // Ignore - leave participant variable undefined.
     }
 
+    if (!firstMessage.author) {
+        console.log("First message's author is not defined.");
+        return;
+    }
+
+    const {isAdmin, isMod} = firstMessage.author;
+
     const subject = conversationResponse.conversation.subject ?? "";
     const body = firstMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
 
-    let userIsModerator = false;
-    if (participant) {
-        userIsModerator = await isModerator(context, subreddit.name, participant.username);
+    const processedRules: RuleMatchContext[] = [];
+    // Sort rules by priority descending.
+    rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+    for (const rule of rules) {
+        // eslint-disable-next-line no-await-in-loop
+        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, participant, isMod, isAdmin);
+        processedRules.push(ruleResult);
+
+        if (ruleResult.ruleMatched) {
+            // Stop processing more rules - we have a match.
+            break;
+        }
     }
 
-    let matchedRules = await Promise.all(rules.map(rule => checkRule(context, subreddit, rule, subject, body, participant, userIsModerator)));
-
-    const rulesWithDebugInfo = matchedRules.filter(x => x.verboseLogs.length > 0);
+    const rulesWithDebugInfo = processedRules.filter(x => x.verboseLogs.length > 0);
     if (rulesWithDebugInfo.length > 0) {
         let debugOutput = "Modmail Automator logs\n\n";
 
@@ -146,30 +161,27 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         });
     }
 
-    // Sort by priority descending, take top 1.
-    matchedRules = matchedRules.filter(x => x.ruleMatched).sort((a, b) => b.priority - a.priority);
+    const matchedRule = processedRules.find(x => x.ruleMatched);
 
-    if (matchedRules.length === 0) {
+    if (!matchedRule) {
         console.log("No rules matched.");
         return;
     }
 
     console.log("Matched a rule.");
 
-    const firstMatchedRule = matchedRules[0];
-
     const action: ModmailAction = {
         conversationId: conversationResponse.conversation.id,
         username: event.messageAuthor.name,
-        archive: firstMatchedRule.archive,
-        mute: firstMatchedRule.mute,
-        unban: firstMatchedRule.unban,
+        archive: matchedRule.archive,
+        mute: matchedRule.mute,
+        unban: matchedRule.unban,
     };
 
-    if (firstMatchedRule.reply) {
-        let replyMessage = firstMatchedRule.reply;
+    if (matchedRule.reply) {
+        let replyMessage = matchedRule.reply;
 
-        const signoff = await context.settings.get<string>("signoff");
+        const signoff = await context.settings.get<string>(AppSetting.Signoff);
         if (signoff) {
             replyMessage += `\n\n${signoff}`;
         }
@@ -177,21 +189,22 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
         let language: Language | undefined;
-        if (firstMatchedRule.modActionDate || firstMatchedRule.modActionTargetKind) {
-            const localeResult = await context.settings.get<string[]>("locale") ?? ["enUS"];
+        if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
+            const localeResult = await context.settings.get<string[]>(AppSetting.Locale) ?? ["enUS"];
             language = languageFromString(localeResult[0]);
         }
 
-        if (firstMatchedRule.modActionDate && language) {
-            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(firstMatchedRule.modActionDate, {locale: language.locale}));
+        if (matchedRule.modActionDate && language) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, {locale: language.locale}));
         }
-        if (firstMatchedRule.modActionTargetPermalink) {
-            replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", firstMatchedRule.modActionTargetPermalink);
+        if (matchedRule.modActionTargetPermalink) {
+            replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
         }
-        if (firstMatchedRule.modActionTargetKind && language) {
-            let targetKind = await context.settings.get<string>(`${firstMatchedRule.modActionTargetKind}String`);
+        if (matchedRule.modActionTargetKind && language) {
+            const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
+            let targetKind = await context.settings.get<string>(settingsKey);
             if (!targetKind) {
-                targetKind = firstMatchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
+                targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
             }
 
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
@@ -200,7 +213,7 @@ export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, con
         action.reply = replyMessage;
     }
 
-    const sendAfterDelay = await context.settings.get<number>("secondsDelayBeforeSend") ?? 0;
+    const sendAfterDelay = await context.settings.get<number>(AppSetting.SecondsDelayBeforeSend) ?? 0;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
@@ -272,7 +285,7 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: ResponseRule, subject: string, body: string, participant: User | undefined, userIsModerator: boolean): Promise<RuleMatchContext> {
+export async function checkRule (context: TriggerContext | undefined, subredditName: string, rule: ResponseRule, subject: string, body: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -288,12 +301,26 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         return result;
     }
 
+    if (rule.admins_exempt !== false && userIsAdmin) {
+        logDebug(rule.verbose_logs, "Rule exempts admins, and user is an admin.", result.verboseLogs);
+        return result;
+    }
+
     if (rule.subject) {
         if (!checkTextMatch(subject, rule.subject, rule.subject_options)) {
             logDebug(rule.verbose_logs, "Subject does not match.", result.verboseLogs);
             return result;
         } else {
             logDebug(rule.verbose_logs, "Subject matched successfully.", result.verboseLogs);
+        }
+    }
+
+    if (rule.notsubject) {
+        if (!checkTextMatch(subject, rule.notsubject, rule.notsubject_options)) {
+            logDebug(rule.verbose_logs, "Negated subject matched, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Negated subject did not match, so check passes.", result.verboseLogs);
         }
     }
 
@@ -306,6 +333,15 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
     }
 
+    if (rule.notbody) {
+        if (!checkTextMatch(subject, rule.notbody, rule.notbody_options)) {
+            logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Negated body did not match, so check passes.", result.verboseLogs);
+        }
+    }
+
     if (rule.author) {
         if (participant) {
             // Most checks need the user to be not shadowbanned.
@@ -315,6 +351,15 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                     return result;
                 } else {
                     logDebug(rule.verbose_logs, "Author name matches", result.verboseLogs);
+                }
+            }
+
+            if (rule.author.notname) {
+                if (!checkTextMatch(participant.username, rule.author.notname, rule.author.notname_options)) {
+                    logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "Negated author name does not match, so check passes", result.verboseLogs);
                 }
             }
 
@@ -353,8 +398,8 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 logDebug(rule.verbose_logs, `Satisfy any threshold is set to ${JSON.stringify(rule.author.satisfy_any_threshold)} therefore threshold checks passed.`, result.verboseLogs);
             }
 
-            if (rule.author.is_banned !== undefined) {
-                const userIsBanned = await isBanned(context, subreddit.name, participant.username);
+            if (context && rule.author.is_banned !== undefined) {
+                const userIsBanned = await isBanned(context, subredditName, participant.username);
                 if (rule.author.is_banned !== userIsBanned) {
                     logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
                     return result;
@@ -363,8 +408,8 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
                 }
             }
 
-            if (rule.author.is_contributor !== undefined) {
-                const userIsContributor = await isContributor(context, subreddit.name, participant.username);
+            if (context && rule.author.is_contributor !== undefined) {
+                const userIsContributor = await isContributor(context, subredditName, participant.username);
                 if (rule.author.is_contributor !== userIsContributor) {
                     logDebug(rule.verbose_logs, "Approved User check failed, skipping rule.", result.verboseLogs);
                     return result;
@@ -383,7 +428,7 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
             }
 
             if (rule.author.flair_text || rule.author.flair_css_class || rule.author.flair_css_class) {
-                const flair = await participant.getUserFlairBySubreddit(subreddit.name);
+                const flair = await participant.getUserFlairBySubreddit(subredditName);
                 if (!flair) {
                     logDebug(rule.verbose_logs, "User does not have flair, but flair checks exist. Skipping rule.", result.verboseLogs);
                     return result;
@@ -413,9 +458,9 @@ async function checkRule (context: TriggerContext, subreddit: Subreddit, rule: R
         }
     }
 
-    if (rule.mod_action && participant) {
+    if (context && rule.mod_action && participant) {
         let modLog = await context.reddit.getModerationLog({
-            subredditName: subreddit.name,
+            subredditName,
             moderatorUsernames: rule.mod_action.moderator_name,
             type: rule.mod_action.mod_action_type,
             limit: 200,
@@ -556,7 +601,7 @@ export function checkTextMatch (input: string, matchText: string[], options?: Se
         options = {search_method: "includes", negate: false, case_sensitive: false};
     }
 
-    if (!options.case_sensitive) {
+    if (options.search_method !== "regex" && !options.case_sensitive) {
         input = input.toLowerCase();
         matchText = matchText.map(item => item.toLowerCase());
     }
@@ -580,7 +625,11 @@ export function checkTextMatch (input: string, matchText: string[], options?: Se
             result = matchText.some(x => input === x);
             break;
         case "regex":
-            result = matchText.some(x => new RegExp(x).test(input));
+            if (options.case_sensitive) {
+                result = matchText.some(x => new RegExp(x).test(input));
+            } else {
+                result = matchText.some(x => new RegExp(x, "i").test(input));
+            }
             break;
         default:
             throw new Error(`Unexpected search method ${options.search_method ?? "undefined"}`);

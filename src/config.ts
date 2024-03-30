@@ -52,7 +52,7 @@ export interface ResponseRule {
     verbose_logs?: boolean,
 }
 
-const matchSearchMethod = ["includes", "includes-word", "starts-with", "ends-with", "full-exact", "regex"];
+const matchSearchMethod = ["includes-word", "includes", "starts-with", "ends-with", "full-exact", "regex"];
 
 /**
  * Ajv schema used to validate response rules.

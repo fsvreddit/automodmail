@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import {addDays, addMinutes, addMonths, addWeeks, addYears} from "date-fns";
 import {checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold} from "./autoresponder.js";
-import {ResponseRule} from "./config.js";
+import {ResponseRule, parseRules} from "./config.js";
 
 test("Within numeric threshold less than", () => {
     const result = meetsNumericThreshold(5, "< 10");
@@ -188,3 +188,29 @@ test("Both subject and negated subject", async () => {
     expect(resultMatching.ruleMatched).toBeTruthy();
     expect(resultMatching.mute).toEqual(3);
 });
+
+test("Reproduction scenario from dcltw", async () => {
+    // https://www.reddit.com/r/fsvapps/comments/1aqrz9k/introducing_modmail_automator/kx652vx/
+    const rules = `---
+# Verification No Link
+~body (includes-word): ["test", "this", "hello"]
+subject: Verification Request
+verbose_logs: true
+author:
+    is_banned: false
+reply: |
+    Rule Triggered - Verification No Link
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    console.log(rule);
+    // eslint-disable-next-line no-await-in-loop
+    const ruleResult = await checkRule(undefined, "testsub", rule, "Verification Request", "this is a test", undefined, false, false);
+    console.log(ruleResult);
+
+    expect(ruleResult.ruleMatched).toBeFalsy();
+});
+

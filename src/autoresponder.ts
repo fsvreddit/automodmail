@@ -334,7 +334,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.notbody) {
-        if (!checkTextMatch(subject, rule.notbody, rule.notbody_options)) {
+        if (!checkTextMatch(body, rule.notbody, rule.notbody_options)) {
             logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
             return result;
         } else {

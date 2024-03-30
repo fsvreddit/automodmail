@@ -28,8 +28,6 @@ If you need a string to start with a > character, you must enclose it in quotes 
 
 `subject` matches the subject of the incoming modmail, and performs a match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
 
-`subject_regex` and `body_regex` likewise check the subject and body, but this time using regular expressions, which ignore case.
-
 All four of these modmail properties checks can take a single value or an array of values. The following are all valid:
 
     subject: "Ban appeal"
@@ -262,7 +260,7 @@ Some subreddits get a large amount of spam with predictable patterns that can be
 
     ---
     subject: "opportunity"
-    body_regex: "(?:badcryptoscamsite1.com|badcryptoscamsite2.com)"
+    body (regex): "(?:badcryptoscamsite1.com|badcryptoscamsite2.com)"
     mute: 28
     archive: true
     ---

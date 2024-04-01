@@ -11,6 +11,7 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 Bug fixes:
 - Fixed ~body rule checks that were broken
 - Fixed (includes-word) acting like (includes) was specified
+- Add support for "addremovalreason" mod action types
 
 ### v1.2
 

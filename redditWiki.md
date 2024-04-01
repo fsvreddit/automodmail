@@ -123,7 +123,7 @@ Sub properties are:
 
 `moderator_name`: the name (or names) of the moderator who took the action. This is case sensitive. 
 
-`mod_action_type`: the type of mod action taken. This must be one of the following: "banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser"
+`mod_action_type`: the type of mod action taken. This must be one of the following: "banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"
 
 `action_within`: The timeframe that the mod action was taken in relative to the date/time of the modmail. E.g. `action_within: 30 minutes`. Like account age, supported time units are `minute`, `hour`, `day`, `week`, `month` and `year`, with both singular and plural forms supported.
 

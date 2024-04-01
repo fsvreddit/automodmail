@@ -152,7 +152,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 type: "object",
                 properties: {
                     moderator_name: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-                    mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser"]},
+                    mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"]},
                     action_within: {type: "string", nullable: true, pattern: dateComparatorPattern},
                     action_reason: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
                 },

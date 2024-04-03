@@ -52,7 +52,7 @@ export interface ResponseRule {
     verbose_logs?: boolean,
 }
 
-const matchSearchMethod = ["includes", "includes-word", "starts-with", "ends-with", "full-exact", "regex"];
+const matchSearchMethod = ["includes-word", "includes", "starts-with", "ends-with", "full-exact", "regex"];
 
 /**
  * Ajv schema used to validate response rules.
@@ -152,7 +152,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 type: "object",
                 properties: {
                     moderator_name: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-                    mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser"]},
+                    mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"]},
                     action_within: {type: "string", nullable: true, pattern: dateComparatorPattern},
                     action_reason: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
                 },

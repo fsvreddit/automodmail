@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import {OnTriggerEvent, ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
+import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
@@ -40,7 +40,7 @@ interface ModmailAction {
  * @param event The trigger event
  * @param context Context
  */
-export async function onModmailReceiveEvent (event: OnTriggerEvent<ModMail>, context: TriggerContext) {
+export async function onModmailReceiveEvent (event: ModMail, context: TriggerContext) {
     console.log("Received modmail trigger event.");
     console.log(`Event Message ID: ${event.messageId}`);
 
@@ -334,7 +334,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.notbody) {
-        if (!checkTextMatch(subject, rule.notbody, rule.notbody_options)) {
+        if (!checkTextMatch(body, rule.notbody, rule.notbody_options)) {
             logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
             return result;
         } else {

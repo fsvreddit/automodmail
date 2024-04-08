@@ -434,14 +434,40 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     return result;
                 }
 
-                if (rule.author.flair_text && rule.author.flair_text !== flair.flairText) {
-                    logDebug(rule.verbose_logs, "Flair text check failed. Skipping rule.", result.verboseLogs);
-                    return result;
+                if (rule.author.flair_text) {
+                    if (!checkTextMatch(flair.flairText ?? "", rule.author.flair_text, rule.author.flair_text_options)) {
+                        logDebug(rule.verbose_logs, "Flair text does not match.", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Flair text matched successfully.", result.verboseLogs);
+                    }
                 }
 
-                if (rule.author.flair_css_class && rule.author.flair_css_class !== flair.flairCssClass) {
-                    logDebug(rule.verbose_logs, "Flair text check failed. Skipping rule.", result.verboseLogs);
-                    return result;
+                if (rule.author.notflair_text) {
+                    if (!checkTextMatch(flair.flairText ?? "", rule.author.notflair_text, rule.author.notflair_text_options)) {
+                        logDebug(rule.verbose_logs, "Negated flair text matched, so rule fails", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Negated flair text did not match, so check passes.", result.verboseLogs);
+                    }
+                }
+
+                if (rule.author.flair_css_class) {
+                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author.flair_css_class, rule.author.flair_css_class_options)) {
+                        logDebug(rule.verbose_logs, "Flair CSS class does not match.", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Flair CSS class matched successfully.", result.verboseLogs);
+                    }
+                }
+
+                if (rule.author.notflair_css_class) {
+                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author.notflair_css_class, rule.author.notflair_css_class_options)) {
+                        logDebug(rule.verbose_logs, "Negated flair CSS class matched, so rule fails", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Negated flair CSS class did not match, so check passes.", result.verboseLogs);
+                    }
                 }
 
                 logDebug(rule.verbose_logs, "Flair matched.", result.verboseLogs);

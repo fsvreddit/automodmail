@@ -31,8 +31,14 @@ export interface ResponseRule {
         combined_karma?: string,
         account_age?: string,
         satisfy_any_threshold?: boolean,
-        flair_text?: string,
-        flair_css_class?: string,
+        flair_text?: string[],
+        flair_text_options?: SearchOption,
+        notflair_text?: string[],
+        notflair_text_options?: SearchOption,
+        flair_css_class?: string[],
+        flair_css_class_options?: SearchOption,
+        notflair_css_class?: string[],
+        notflair_css_class_options?: SearchOption,
         is_contributor?: boolean
         is_moderator?: boolean
         is_shadowbanned?: boolean
@@ -138,8 +144,50 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     combined_karma: {type: "string", nullable: true, pattern: numericComparatorPattern},
                     account_age: {type: "string", nullable: true, pattern: dateComparatorPattern},
                     satisfy_any_threshold: {type: "boolean", nullable: true},
-                    flair_text: {type: "string", nullable: true, minLength: 1},
-                    flair_css_class: {type: "string", nullable: true, minLength: 1},
+                    flair_text: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    flair_text_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
+                    notflair_text: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    notflair_text_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
+                    flair_css_class: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    flair_css_class_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
+                    notflair_css_class: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    notflair_css_class_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
                     is_contributor: {type: "boolean", nullable: true},
                     is_moderator: {type: "boolean", nullable: true},
                     is_shadowbanned: {type: "boolean", nullable: true},
@@ -182,7 +230,7 @@ export function parseRules (rules?: string): ResponseRule[] {
 
     // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
     const preprocessedRules: string[] = [];
-    const searchTypeRegex = /^(subject|body|notsubject|notbody|(?:\t|\s+)(?:name|notname))?(?: \((.+)\))?:(.+)$/;
+    const searchTypeRegex = /^(subject|body|notsubject|notbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class))?(?: \((.+)\))?:(.+)$/;
     for (let line of rules.split("\n")) {
         if (line.startsWith("subject_regex")) {
             line = line.replace("subject_regex", "subject (regex)");
@@ -198,7 +246,7 @@ export function parseRules (rules?: string): ResponseRule[] {
         if (matches && matches.length === 4) {
             const [, searchType, searchOptions, matchData] = matches;
             const searchOption: SearchOption = {};
-            searchOption.negate = searchType === "notsubject" || searchType === "notbody" || searchType === "    notname";
+            searchOption.negate = searchType.trim().startsWith("not");
             if (searchOptions) {
                 searchOption.search_method = matchSearchMethod.find(x => searchOptions.includes(x));
                 searchOption.case_sensitive = searchOptions.includes("case-sensitive");
@@ -207,14 +255,15 @@ export function parseRules (rules?: string): ResponseRule[] {
                 searchOption.case_sensitive = false;
             }
 
-            const leadingSpaces = searchType === "    name" || searchType === "    notname" ? "        " : "    ";
+            const currentLeadingWhitespace = searchType.substring(0, searchType.length - searchType.trimStart().length);
+            const newLeadingWhitespace = currentLeadingWhitespace === "" ? "    " : currentLeadingWhitespace.repeat(2);
 
             preprocessedRules.push(
                 `${searchType}:${matchData}`,
                 `${searchType}_options:`,
-                `${leadingSpaces}search_method: ${JSON.stringify(searchOption.search_method)}`,
-                `${leadingSpaces}negate: ${JSON.stringify(searchOption.negate)}`,
-                `${leadingSpaces}case_sensitive: ${JSON.stringify(searchOption.case_sensitive)}`
+                `${newLeadingWhitespace}search_method: ${JSON.stringify(searchOption.search_method)}`,
+                `${newLeadingWhitespace}negate: ${JSON.stringify(searchOption.negate)}`,
+                `${newLeadingWhitespace}case_sensitive: ${JSON.stringify(searchOption.case_sensitive)}`
             );
         } else {
             preprocessedRules.push(line);

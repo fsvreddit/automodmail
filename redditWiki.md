@@ -200,6 +200,8 @@ If you add `verbose_logs: true` to any rule, the app will reply with a private m
 
 More than one rule can have verbose_logs enabled at a time, but it is generally going to be most useful to enable for a single rule at a time and only while testing it.
 
+You can also set a friendly name on rules using `rule_friendly_name: "Rule name of your choice"` to make verbose output more helpful.
+
 ## "Signoff" for responses
 
 In the configuration screen, you can also specify a "signoff" footer to be included on all autoresponses. It's recommended that you include one of these and use it to make users aware that the response is automatic and that they can reply to get more information from a human.

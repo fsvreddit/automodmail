@@ -296,6 +296,10 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         verboseLogs: [],
     };
 
+    if (rule.rule_friendly_name) {
+        logDebug(rule.verbose_logs, `Processing rule with name "${rule.rule_friendly_name}"`, result.verboseLogs);
+    }
+
     if (rule.moderators_exempt !== false && userIsModerator) {
         logDebug(rule.verbose_logs, "Rule exempts moderators, and user is a mod.", result.verboseLogs);
         return result;

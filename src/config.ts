@@ -11,6 +11,7 @@ export interface SearchOption {
 }
 
 export interface ResponseRule {
+    rule_friendly_name?: string,
     subject?: string[],
     subject_options?: SearchOption,
     notsubject?: string[],
@@ -68,6 +69,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
     items: {
         type: "object",
         properties: {
+            rule_friendly_name: {type: "string", minLength: 1, nullable: true},
             subject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             subject_options: {
                 type: "object",

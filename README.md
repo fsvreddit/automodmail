@@ -10,6 +10,7 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 - Adds ability to use modifiers such as regex, case_sensitive, includes etc. on `flair_text` and `flair_css_class` checks, as well as negated equivalents (`~flair_text`, `~flair_css_class`)
 - Adds `rule_friendly_name` property to rules to allow easier reading of verbose output
+- Fixes formatting issues if username or sub name contain markdown special characters
 
 ### v1.3
 

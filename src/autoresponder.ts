@@ -9,6 +9,7 @@ import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
 import {AppSetting} from "./settings.js";
+import markdownEscape from "markdown-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -186,8 +187,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
             replyMessage += `\n\n${signoff}`;
         }
 
-        replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
-        replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
+        replyMessage = replaceAll(replyMessage, "{{author}}", markdownEscape(event.messageAuthor.name));
+        replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subreddit.name));
         let language: Language | undefined;
         if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
             const localeResult = await context.settings.get<string[]>(AppSetting.Locale) ?? ["enUS"];

@@ -51,7 +51,7 @@ export const appSettings: SettingsFormField[] = [
                 type: "select",
                 name: AppSetting.Locale,
                 label: "Language to use for output",
-                helpText: "Affects {{mod_action_timespan_to_now}} placeholder only at the present time",
+                helpText: "Affects {{mod_action_timespan_to_now}} and {{mod_action_target_kind}} placeholders at the present time",
                 multiSelect: false,
                 options: languageList.map(language => ({label: language.languageName, value: language.isoCode})),
                 defaultValue: ["en"],

@@ -92,10 +92,16 @@ It is unlikely that "=" checks will be useful for many rules, especially for dat
 
 The app supports several other properties about users.
 
-`flair_text` and `flair_css_class` are simple text checks that match the flair text or CSS class **exactly**. This can be useful if you use flairs to categorise users. E.g.
+`flair_text` and `flair_css_class` are simple text checks that match the user's flair text or CSS class similarly to other text matching rules. `~flair_text` and `~flair_css_class` are also supported:
 
     author:
         flair_text: "Helpful"
+
+    author:
+        ~flair_text (regex): ["^verified", "^approved"]
+
+    author:
+        flair_css_class (full_exact): "bot"
 
 There are also four true/false checks on account properties that may be useful: `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 
@@ -108,12 +114,12 @@ You can also check the account name. `name` matches the user name and supports t
         name: "BadUser1234"
 
     author:
-        name: ["BadUser1", "BadUser2"]
+        ~name: ["BadUser1", "BadUser2"]
 
     author:
         name (regex, case-sensitive): "^ThrowRA"
 
-Previous versions of this app used a different check (`name_regex`) for regular expression searches. If you have this syntax is in any existing rules then these will continue to work but I recommend moving to the new syntax for simplicity.
+Early versions of this app used a different check (`name_regex`) for regular expression searches. If you have this syntax is in any existing rules then these will continue to work but I recommend moving to the new syntax for simplicity.
 
 ## Mod Action checks
 
@@ -193,6 +199,8 @@ The three mod_action placeholders will only work if a mod_action check is presen
 If you add `verbose_logs: true` to any rule, the app will reply with a private mod note with information about why each check in a rule passed or failed. This can be useful when testing rules or trying to work out why a rule isn't working. I recommend only using this for short periods, maybe even just in test subreddits, because when any rule has verbose_logs turned on the app will respond to EVERY new modmail.
 
 More than one rule can have verbose_logs enabled at a time, but it is generally going to be most useful to enable for a single rule at a time and only while testing it.
+
+You can also set a friendly name on rules using `rule_friendly_name: "Rule name of your choice"` to make verbose output more helpful.
 
 ## "Signoff" for responses
 

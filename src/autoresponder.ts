@@ -9,6 +9,7 @@ import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
 import {AppSetting} from "./settings.js";
+import markdownEscape from "markdown-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -186,8 +187,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
             replyMessage += `\n\n${signoff}`;
         }
 
-        replyMessage = replaceAll(replyMessage, "{{author}}", event.messageAuthor.name);
-        replyMessage = replaceAll(replyMessage, "{{subreddit}}", subreddit.name);
+        replyMessage = replaceAll(replyMessage, "{{author}}", markdownEscape(event.messageAuthor.name));
+        replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subreddit.name));
         let language: Language | undefined;
         if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
             const localeResult = await context.settings.get<string[]>(AppSetting.Locale) ?? ["enUS"];
@@ -295,6 +296,10 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         unban: rule.unban,
         verboseLogs: [],
     };
+
+    if (rule.rule_friendly_name) {
+        logDebug(rule.verbose_logs, `Processing rule with name "${rule.rule_friendly_name}"`, result.verboseLogs);
+    }
 
     if (rule.moderators_exempt !== false && userIsModerator) {
         logDebug(rule.verbose_logs, "Rule exempts moderators, and user is a mod.", result.verboseLogs);
@@ -434,14 +439,40 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     return result;
                 }
 
-                if (rule.author.flair_text && rule.author.flair_text !== flair.flairText) {
-                    logDebug(rule.verbose_logs, "Flair text check failed. Skipping rule.", result.verboseLogs);
-                    return result;
+                if (rule.author.flair_text) {
+                    if (!checkTextMatch(flair.flairText ?? "", rule.author.flair_text, rule.author.flair_text_options)) {
+                        logDebug(rule.verbose_logs, "Flair text does not match.", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Flair text matched successfully.", result.verboseLogs);
+                    }
                 }
 
-                if (rule.author.flair_css_class && rule.author.flair_css_class !== flair.flairCssClass) {
-                    logDebug(rule.verbose_logs, "Flair text check failed. Skipping rule.", result.verboseLogs);
-                    return result;
+                if (rule.author.notflair_text) {
+                    if (!checkTextMatch(flair.flairText ?? "", rule.author.notflair_text, rule.author.notflair_text_options)) {
+                        logDebug(rule.verbose_logs, "Negated flair text matched, so rule fails", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Negated flair text did not match, so check passes.", result.verboseLogs);
+                    }
+                }
+
+                if (rule.author.flair_css_class) {
+                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author.flair_css_class, rule.author.flair_css_class_options)) {
+                        logDebug(rule.verbose_logs, "Flair CSS class does not match.", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Flair CSS class matched successfully.", result.verboseLogs);
+                    }
+                }
+
+                if (rule.author.notflair_css_class) {
+                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author.notflair_css_class, rule.author.notflair_css_class_options)) {
+                        logDebug(rule.verbose_logs, "Negated flair CSS class matched, so rule fails", result.verboseLogs);
+                        return result;
+                    } else {
+                        logDebug(rule.verbose_logs, "Negated flair CSS class did not match, so check passes.", result.verboseLogs);
+                    }
                 }
 
                 logDebug(rule.verbose_logs, "Flair matched.", result.verboseLogs);

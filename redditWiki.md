@@ -206,7 +206,7 @@ The following placeholders are all supported:
 
 `{{mod_action_target_kind}}` - Either "post" or "comment". Like the timespan above, this will respect the language chosen. You can also choose your own terms for "post" and "comment" in the configuration options if you need to support further languages, or if you think a better translation could have been used (if you do have any suggestions on improving translations, please contact /u/fsv!)
 
-The three mod_action placeholders will only work if a mod_action check is present in the rule. 
+The four mod_action placeholders will only work if a mod_action check is present in the rule. 
 
 ## Debug options
 

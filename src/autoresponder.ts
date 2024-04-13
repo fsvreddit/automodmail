@@ -8,7 +8,7 @@ import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
-import {AppSetting} from "./settings.js";
+import {AppSetting, defaultSignoff} from "./settings.js";
 import markdownEscape from "markdown-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
@@ -202,7 +202,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     if (matchedRule.reply) {
         let replyMessage = matchedRule.reply;
 
-        const signoff = settings[AppSetting.Signoff] as string | undefined;
+        const signoff = settings[AppSetting.Signoff] as string ?? defaultSignoff;
         const includeSignoffForMods = settings[AppSetting.IncludeSignoffForMods] as boolean ?? false;
         if (signoff && (!isMod || includeSignoffForMods)) {
             replyMessage += `\n\n${signoff}`;

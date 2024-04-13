@@ -1,4 +1,4 @@
-import {SettingsFormField} from "@devvit/public-api";
+import {SettingsFormField, SettingsFormFieldValidatorEvent} from "@devvit/public-api";
 import {languageList} from "./i18n.js";
 import {parseRules} from "./config.js";
 
@@ -12,12 +12,21 @@ export enum AppSetting {
     CommentString = "commentString",
 }
 
+function selectFieldHasOptionChosen (event: SettingsFormFieldValidatorEvent<string[]>): void | string {
+    if (!event.value || event.value.length !== 1) {
+        return "You must choose an option";
+    }
+}
+
+export const defaultSignoff = "*This is an automatic response. If you need more assistance, please reply to this message and a human moderator will review your request.*";
+
 export const appSettings: SettingsFormField[] = [
     {
         type: "paragraph",
         name: AppSetting.Rules,
         label: "Enter YAML autoresponse rules",
         helpText: "Please see documentation here for syntax: https://www.reddit.com/r/fsvapps/wiki/auto-modmail",
+        lineHeight: 10,
         onValidate: ({value}) => {
             try {
                 parseRules(value);
@@ -35,7 +44,7 @@ export const appSettings: SettingsFormField[] = [
         name: AppSetting.Signoff,
         label: "Enter text to accompany all autoresponses",
         helpText: "It is recommended that you use this to inform your users that the reply was automated.",
-        defaultValue: "*This is an automatic response. If you need more assistance, please reply to this message and a human moderator will review your request.*",
+        defaultValue: defaultSignoff,
     },
     {
         type: "boolean",
@@ -62,6 +71,7 @@ export const appSettings: SettingsFormField[] = [
                 multiSelect: false,
                 options: languageList.map(language => ({label: language.languageName, value: language.isoCode})),
                 defaultValue: ["en"],
+                onValidate: selectFieldHasOptionChosen,
             },
             {
                 type: "string",

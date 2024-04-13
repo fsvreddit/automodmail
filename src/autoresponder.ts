@@ -2,7 +2,7 @@
 import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
-import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
+import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative} from "date-fns";
 import {ThingPrefix, isBanned, isContributor, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
@@ -85,8 +85,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         console.log("Cannot find current message!");
         return;
     }
-
-    console.log(currentMessage);
 
     if (!currentMessage.author) {
         console.log("First message's author is not defined.");
@@ -220,6 +218,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
         if (matchedRule.modActionDate && language) {
             replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, {locale: language.locale}));
+            replyMessage = replaceAll(replyMessage, "{{mod_action_relative_time}}", formatRelative(matchedRule.modActionDate, new Date(), {locale: language.locale}));
         }
         if (matchedRule.modActionTargetPermalink) {
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
@@ -651,22 +650,22 @@ export function meetsDateThreshold (input: Date, threshold: string, defaultOpera
     let comparisonDate: Date | undefined;
     switch (interval) {
         case "minute":
-            comparisonDate = addMinutes(new Date(), -value);
+            comparisonDate = subMinutes(new Date(), value);
             break;
         case "hour":
-            comparisonDate = addHours(new Date(), -value);
+            comparisonDate = subHours(new Date(), value);
             break;
         case "day":
-            comparisonDate = addDays(new Date(), -value);
+            comparisonDate = subDays(new Date(), value);
             break;
         case "week":
-            comparisonDate = addWeeks(new Date(), -value);
+            comparisonDate = subWeeks(new Date(), value);
             break;
         case "month":
-            comparisonDate = addMonths(new Date(), -value);
+            comparisonDate = subMonths(new Date(), value);
             break;
         case "year":
-            comparisonDate = addYears(new Date(), -value);
+            comparisonDate = subYears(new Date(), value);
             break;
     }
 

@@ -12,7 +12,8 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 - Add `approve_user` action
 - Add `is_reply` check, enabling rules that act on replies.
 - Add `is_participant` check, enabling rules that only act on the user the modmail thread is about
--  Add `still_in_queue` property to mod_action checks, allowing you to react differently depending on whether a matching item is currently modqueued or  not
+- Add `still_in_queue` property to mod_action checks, allowing you to react differently depending on whether a matching item is currently modqueued or  not
+- Add `{{mod_action_relative_time}}` placeholder for reply messages
 
 ### v1.4
 

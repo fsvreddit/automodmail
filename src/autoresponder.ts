@@ -347,6 +347,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
+    if (rule.subjectandbody) {
+        if (!checkTextMatch(subject, rule.subjectandbody, rule.subjectandbody_options) && !checkTextMatch(body, rule.subjectandbody, rule.subjectandbody_options)) {
+            logDebug(rule.verbose_logs, "subject+body does not match.", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "subject+body matched successfully.", result.verboseLogs);
+        }
+    }
+
+    if (rule.notsubjectandbody) {
+        if (!checkTextMatch(subject, rule.notsubjectandbody, rule.notsubjectandbody_options) || !checkTextMatch(body, rule.notsubjectandbody, rule.notsubjectandbody_options)) {
+            logDebug(rule.verbose_logs, "Negated subject+body matched, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Negated subject+body did not match, so check passes", result.verboseLogs);
+        }
+    }
+
     if (rule.author) {
         if (participant) {
             // Most checks need the user to be not shadowbanned.

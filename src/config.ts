@@ -20,6 +20,10 @@ export interface ResponseRule {
     body_options?: SearchOption,
     notbody?: string[],
     notbody_options?: SearchOption,
+    subjectandbody?: string[],
+    subjectandbody_options?: SearchOption,
+    notsubjectandbody?: string[],
+    notsubjectandbody_options?: SearchOption,
     moderators_exempt?: boolean,
     admins_exempt?: boolean,
     author?: {
@@ -105,6 +109,28 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             },
             notbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             notbody_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
+            subjectandbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            subjectandbody_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
+            notsubjectandbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notsubjectandbody_options: {
                 type: "object",
                 properties: {
                     search_method: {type: "string", nullable: true, enum: matchSearchMethod},
@@ -232,7 +258,7 @@ export function parseRules (rules?: string): ResponseRule[] {
 
     // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
     const preprocessedRules: string[] = [];
-    const searchTypeRegex = /^(subject|body|notsubject|notbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class))?(?: \((.+)\))?:(.+)$/;
+    const searchTypeRegex = /^(subject|body|notsubject|notbody|subjectandbody|notsubjectandbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class))?(?: \((.+)\))?:(.+)$/;
     for (let line of rules.split("\n")) {
         if (line.startsWith("subject_regex")) {
             line = line.replace("subject_regex", "subject (regex)");
@@ -242,6 +268,14 @@ export function parseRules (rules?: string): ResponseRule[] {
             line = line.replace("name_regex", "name (regex)");
         } else if (line.trim().startsWith("~")) {
             line = line.replace("~", "not");
+        }
+
+        if (line.startsWith("subject+body") || line.startsWith("notsubject+body")) {
+            line = line.replace("subject+body", "subjectandbody");
+        }
+
+        if (line.startsWith("body+subject") || line.startsWith("notbody+subject")) {
+            line = line.replace("body+subject", "subjectandbody");
         }
 
         const matches = line.match(searchTypeRegex);

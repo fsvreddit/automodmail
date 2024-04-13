@@ -40,6 +40,8 @@ All four of these modmail properties checks can take a single value or an array 
 
 All four of these can also support negation e.g. `~subject`. If you use negation, then none of the search terms may match. You can use normal and negated properties together e.g. `body` and `~body` may appear in the same rule, but `body` cannot appear twice.
 
+Like Automod, you can also use `subject+body`, `~subject+body`, `body+subject` or `~body+subject` to check both fields at the same time. For `subject+body`, a check passes if either subject or body match. for `~subject+body`, the check passes if neither matches.
+
 ### Modifiers
 
 `subject` and `body` have optional modifiers to change how the text is matched. These are the same as AutoModerator minus full-text.

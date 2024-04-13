@@ -5,6 +5,7 @@ import {parseRules} from "./config.js";
 export enum AppSetting {
     Rules = "rules",
     Signoff = "signoff",
+    IncludeSignoffForMods = "includeSignoffForMods",
     SecondsDelayBeforeSend = "secondsDelayBeforeSend",
     Locale = "locale",
     PostString = "postString",
@@ -35,6 +36,12 @@ export const appSettings: SettingsFormField[] = [
         label: "Enter text to accompany all autoresponses",
         helpText: "It is recommended that you use this to inform your users that the reply was automated.",
         defaultValue: "*This is an automatic response. If you need more assistance, please reply to this message and a human moderator will review your request.*",
+    },
+    {
+        type: "boolean",
+        name: AppSetting.IncludeSignoffForMods,
+        label: "Include signoff when processing actions triggered by mod messages",
+        defaultValue: true,
     },
     {
         type: "number",

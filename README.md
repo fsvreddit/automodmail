@@ -10,6 +10,8 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 - Add `subject+body` check, as well as negated equivalent `~subject+body`
 - Add `approve_user` action
+- Add `is_reply` check, enabling rules that act on replies.
+- Add `is_participant` check, enabling rules that only act on the user the modmail thread is about
 
 ### v1.4
 

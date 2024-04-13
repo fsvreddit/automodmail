@@ -70,27 +70,51 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (conversationResponse.conversation.participant.name !== event.messageAuthor.name) {
-        console.log("Conversation author is not the same as participant - outgoing modmail");
-        return;
-    }
-
     const messagesInConversation = Object.values(conversationResponse.conversation.messages);
 
     const firstMessage = messagesInConversation[0];
     console.log(`First Message ID: ${firstMessage.id ?? "undefined"}`);
-
-    // Check that the first message in the entire conversation was for this person.
-    if (!firstMessage.id || !event.messageId.includes(firstMessage.id)) {
-        console.log("Message isn't the very first. Quitting");
+    if (!firstMessage.id) {
         return;
     }
 
+    const isFirstMessage = event.messageId.includes(firstMessage.id);
+    const currentMessage = messagesInConversation.find(message => message.id && event.messageId.includes(message.id));
+
+    if (!currentMessage) {
+        console.log("Cannot find current message!");
+        return;
+    }
+
+    console.log(currentMessage);
+
+    if (!currentMessage.author) {
+        console.log("First message's author is not defined.");
+        return;
+    }
+
+    if (isFirstMessage && currentMessage.author.name !== conversationResponse.conversation.participant.name) {
+        console.log("Outgoing modmail, first message. Quitting.");
+        return;
+    }
+
+    const {isAdmin, isMod} = currentMessage.author;
+
     const rulesYaml = await context.settings.get<string>(AppSetting.Rules);
-    const rules = parseRules(rulesYaml);
+    let rules = parseRules(rulesYaml);
+
+    // Narrow down to eligible rules
+    if (isFirstMessage) {
+        rules = rules.filter(rule => !rule.is_reply);
+    } else {
+        rules = rules.filter(rule => rule.is_reply === true);
+    }
+
+    rules = rules.filter(rule => !rule.author || (rule.author && !rule.author.is_moderator || rule.author.is_moderator && isMod));
+    rules = rules.filter(rule => !rule.author || rule.author && (rule.author.is_participant === undefined || rule.author.is_participant === currentMessage.author?.isParticipant));
 
     if (rules.length === 0) {
-        console.log("No rules are defined. Quitting.");
+        console.log("No eligible rules exist for a message in this state. Quitting.");
         return;
     }
 
@@ -102,15 +126,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         // Ignore - leave participant variable undefined.
     }
 
-    if (!firstMessage.author) {
-        console.log("First message's author is not defined.");
-        return;
-    }
-
-    const {isAdmin, isMod} = firstMessage.author;
-
     const subject = conversationResponse.conversation.subject ?? "";
-    const body = firstMessage.bodyMarkdown ?? "";
+    const body = currentMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
 
     const processedRules: RuleMatchContext[] = [];
@@ -186,7 +203,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         let replyMessage = matchedRule.reply;
 
         const signoff = await context.settings.get<string>(AppSetting.Signoff);
-        if (signoff) {
+        const includeSignoffForMods = await context.settings.get<boolean>(AppSetting.IncludeSignoffForMods) ?? false;
+        if (signoff && (!isMod || includeSignoffForMods)) {
             replyMessage += `\n\n${signoff}`;
         }
 
@@ -313,7 +331,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         logDebug(rule.verbose_logs, `Processing rule with name "${rule.rule_friendly_name}"`, result.verboseLogs);
     }
 
-    if (rule.moderators_exempt !== false && userIsModerator) {
+    if (rule.moderators_exempt !== false && userIsModerator && !(rule.author && rule.author.is_moderator)) {
         logDebug(rule.verbose_logs, "Rule exempts moderators, and user is a mod.", result.verboseLogs);
         return result;
     }

@@ -26,6 +26,8 @@ If you need a string to start with a > character, you must enclose it in quotes 
 
 ## Modmail properties
 
+`is_reply` checks to see if the message is a reply or the original message, taking a value of true or false. If this is not entered, the rule will only act on the initial message, and then only if the message is an inbound one. Rules are never checked on the first message if it is a message from a moderator to a user.
+
 `subject` matches the subject of the incoming modmail, and performs a match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
 
 All four of these modmail properties checks can take a single value or an array of values. The following are all valid:
@@ -41,6 +43,8 @@ All four of these modmail properties checks can take a single value or an array 
 All four of these can also support negation e.g. `~subject`. If you use negation, then none of the search terms may match. You can use normal and negated properties together e.g. `body` and `~body` may appear in the same rule, but `body` cannot appear twice.
 
 Like Automod, you can also use `subject+body`, `~subject+body`, `body+subject` or `~body+subject` to check both fields at the same time. For `subject+body`, a check passes if either subject or body match. for `~subject+body`, the check passes if neither matches.
+
+"Body" refers to the message body of the latest message when is_reply is true.
 
 ### Modifiers
 
@@ -105,10 +109,12 @@ The app supports several other properties about users.
     author:
         flair_css_class (full_exact): "bot"
 
-There are also four true/false checks on account properties that may be useful: `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
+There are also five true/false checks on account properties that may be useful: `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 
     author:
         is_banned: "true"
+
+The "participant" is the user who the modmail thread is about. Most rules will never need to check this value, but it may be useful if you want to define rules that act on replies to previous modmails.
 
 You can also check the account name. `name` matches the user name and supports the same modifiers as `subject` and `body` as mentioned above. For example:
 
@@ -291,6 +297,48 @@ Occasionally, subreddits will close temporarily such as in the wake of a major i
 
         Sorry, but {{subreddit}} is temporarily closed. We expect to reopen at 9am GMT on Monday and aren't accepting requests to join in the meantime.
     archive: true
+
+## As an enabler for mod macros
+
+You can use the is_reply and is_moderator functions to enable mod macros. For example:
+
+    ---
+    is_reply: true
+    body: "$$karma"
+    author:
+        is_moderator: true
+    reply: "Your karma is too low. Learn [here](url) how to raise it."
+    archive: true
+
+For this kind of functionality, I recommend that the messages that would trigger these are sent as private moderator notes.
+
+## To automate approvals to private subreddits
+
+You could use sets of rules that work together to automate approving users into a private subreddit.
+
+    ---
+    author:
+        is_contributor: false
+        is_banned: false
+    reply: |
+        This sub is private but allows members to self-approve if they agree to the rules beforehand. 
+
+        - Rule 1
+        - Rule 2
+
+        If you agree to follow these rules, please reply with "!agree"
+    archive: true
+    ---
+    is_reply: true
+    body: "!agree"
+    author:
+        is_participant: true
+        is_contributor: false
+        is_banned: false
+    reply: "Thank you for accepting our rules. You will now be made an approved contributor to {{subreddit}}.
+    approve_user: true
+    archive: true
+    ---
 
 # Limitations
 

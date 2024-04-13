@@ -12,6 +12,7 @@ export interface SearchOption {
 
 export interface ResponseRule {
     rule_friendly_name?: string,
+    is_reply?: boolean,
     subject?: string[],
     subject_options?: SearchOption,
     notsubject?: string[],
@@ -44,10 +45,11 @@ export interface ResponseRule {
         flair_css_class_options?: SearchOption,
         notflair_css_class?: string[],
         notflair_css_class_options?: SearchOption,
-        is_contributor?: boolean
-        is_moderator?: boolean
-        is_shadowbanned?: boolean
-        is_banned?: boolean
+        is_participant?: boolean,
+        is_contributor?: boolean,
+        is_moderator?: boolean,
+        is_shadowbanned?: boolean,
+        is_banned?: boolean,
     },
     mod_action?: {
         moderator_name?: string[],
@@ -75,6 +77,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
         type: "object",
         properties: {
             rule_friendly_name: {type: "string", minLength: 1, nullable: true},
+            is_reply: {type: "boolean", nullable: true},
             subject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             subject_options: {
                 type: "object",
@@ -217,6 +220,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
+                    is_participant: {type: "boolean", nullable: true},
                     is_contributor: {type: "boolean", nullable: true},
                     is_moderator: {type: "boolean", nullable: true},
                     is_shadowbanned: {type: "boolean", nullable: true},
@@ -440,6 +444,14 @@ export function validateRule (rule: ResponseRule): string {
 
     if (rule.unban && (!rule.author || !rule.author.is_banned)) {
         return "You can only have an unban action if there is an author check for is_banned = true";
+    }
+
+    if (rule.moderators_exempt && rule.author && rule.author.is_moderator) {
+        return "You cannot have a rule where moderators are exempt but you're also checking that the author is a mod";
+    }
+
+    if (rule.author && rule.author.is_participant && rule.author.is_moderator) {
+        return "You cannot specify is_participant and is_moderator to be true at the same time";
     }
 
     return "";

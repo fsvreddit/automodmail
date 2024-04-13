@@ -348,19 +348,53 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.author && rule.author.name && rule.author.name_options && rule.author.name_options.search_method === "regex") {
-        try {
-            rule.author.name.map(x => new RegExp(x));
-        } catch {
-            return "Invalid author name regex";
+    if (rule.author) {
+        if (rule.author.name && rule.author.name_options && rule.author.name_options.search_method === "regex") {
+            try {
+                rule.author.name.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author name regex";
+            }
         }
-    }
 
-    if (rule.author && rule.author.notname && rule.author.notname_options && rule.author.notname_options.search_method === "regex") {
-        try {
-            rule.author.notname.map(x => new RegExp(x));
-        } catch {
-            return "Invalid author ~name regex";
+        if (rule.author.notname && rule.author.notname_options && rule.author.notname_options.search_method === "regex") {
+            try {
+                rule.author.notname.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.flair_text && rule.author.flair_text_options && rule.author.flair_text_options.search_method === "regex") {
+            try {
+                rule.author.flair_text.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.notflair_text && rule.author.notflair_text_options && rule.author.notflair_text_options.search_method === "regex") {
+            try {
+                rule.author.notflair_text.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.flair_css_class && rule.author.flair_css_class_options && rule.author.flair_css_class_options.search_method === "regex") {
+            try {
+                rule.author.flair_css_class.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.notflair_css_class && rule.author.notflair_css_class_options && rule.author.notflair_css_class_options.search_method === "regex") {
+            try {
+                rule.author.notflair_css_class.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
         }
     }
 

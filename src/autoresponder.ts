@@ -21,6 +21,7 @@ interface RuleMatchContext {
     mute?: number,
     archive?: boolean,
     unban?: boolean,
+    approve_user?: boolean,
     modActionDate?: Date,
     modActionTargetPermalink?: string,
     modActionTargetKind?: "post" | "comment",
@@ -34,6 +35,7 @@ interface ModmailAction {
     mute?: number
     archive?: boolean,
     unban?: boolean,
+    approve_user?: boolean,
 }
 
 /**
@@ -177,6 +179,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         archive: matchedRule.archive,
         mute: matchedRule.mute,
         unban: matchedRule.unban,
+        approve_user: matchedRule.approve_user,
     };
 
     if (matchedRule.reply) {
@@ -252,10 +255,18 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         console.log("Conversation archived");
     }
 
-    if (action.unban) {
+    if (action.unban || action.approve_user) {
         const subreddit = await context.reddit.getCurrentSubreddit();
-        await context.reddit.unbanUser(action.username, subreddit.name);
-        console.log("User unbanned");
+
+        if (action.unban) {
+            await context.reddit.unbanUser(action.username, subreddit.name);
+            console.log("User unbanned");
+        }
+
+        if (action.approve_user) {
+            await context.reddit.approveUser(action.username, subreddit.name);
+            console.log("User has been added as approved user");
+        }
     }
 }
 
@@ -294,6 +305,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         mute: rule.mute,
         archive: rule.archive,
         unban: rule.unban,
+        approve_user: rule.approve_user,
         verboseLogs: [],
     };
 

@@ -8,7 +8,8 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 ### v1.5
 
-- Add `subject+body` check, as well as negated equivalent `~subject+body`.
+- Add `subject+body` check, as well as negated equivalent `~subject+body`
+- Add `approve_user` action
 
 ### v1.4
 

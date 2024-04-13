@@ -180,6 +180,8 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `unban` unbans the user (if they were already banned). E.g. `unban: "true"`.
 
+`approve_user` adds the user as an approved submitter (if they are not already one). E.g. `approve_user: "true"`.
+
 ### Placeholders on replies
 
 The following placeholders are all supported:

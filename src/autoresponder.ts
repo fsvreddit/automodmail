@@ -3,7 +3,7 @@ import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
-import {isBanned, isContributor, replaceAll} from "./utility.js";
+import {ThingPrefix, isBanned, isContributor, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
@@ -580,9 +580,9 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         result.modActionDate = modLog[0].createdAt;
         if (modLog[0].target) {
             result.modActionTargetPermalink = modLog[0].target.permalink;
-            if (modLog[0].target.id.startsWith("t1")) {
+            if (modLog[0].target.id.startsWith(ThingPrefix.Comment)) {
                 result.modActionTargetKind = "comment";
-            } else if (modLog[0].target.id.startsWith("t3")) {
+            } else if (modLog[0].target.id.startsWith(ThingPrefix.Post)) {
                 result.modActionTargetKind = "post";
             }
         }

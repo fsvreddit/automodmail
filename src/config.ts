@@ -456,5 +456,9 @@ export function validateRule (rule: ResponseRule): string {
         return "You cannot specify is_participant and is_moderator to be true at the same time";
     }
 
+    if (rule.mute && rule.mute !== 3 && rule.mute !== 7 && rule.mute !== 28) {
+        return "Mute must be either 3, 7 or 28 days";
+    }
+
     return "";
 }

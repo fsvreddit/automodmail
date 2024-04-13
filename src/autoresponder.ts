@@ -257,9 +257,8 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
             isInternal: false,
             isAuthorHidden: true,
         });
+        console.log("Replied to modmail");
     }
-
-    console.log("Replied to modmail");
 
     if (action.mute) {
         await context.reddit.modMail.muteConversation({

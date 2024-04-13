@@ -248,7 +248,7 @@ Here's an example rule that replies to a user who might be querying why their co
 Here's an example of a rule that checks for keywords relating to ban appeals, but for users who might not actually be banned (more common than I wish!). If the user isn't banned, they'll receive an auto response telling them so.
 
     ---
-    subject: ["ban appeal", "why am i banned", "why banned"]
+    subject+body: ["ban appeal", "why am i banned", "why banned"]
     author:
         is_banned: false
     reply: |

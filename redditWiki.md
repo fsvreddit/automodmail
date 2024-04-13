@@ -147,6 +147,8 @@ Sub properties are:
 
     action_reason: "low karma"
 
+`still_in_queue`: True or false. Checks to see if a post or comment matching the mod action is still in the mod queue.
+
 **Note**: The app will only look back through the most recent 200 mod actions that match the specified moderator name(s) and/or mod actions. As a result, mod action checks are usually only suitable for fairly recent actions especially if you have a subreddit with a busy mod log. 
 
 ## Priority

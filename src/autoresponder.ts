@@ -559,6 +559,17 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 
+        if (rule.mod_action.still_in_queue !== undefined) {
+            const modQueue = await context.reddit.getModQueue({
+                subreddit: subredditName,
+                type: "all",
+            }).all();
+
+            if (rule.mod_action.still_in_queue) {
+                modLog = modLog.filter(logEntry => logEntry.target && rule.mod_action?.still_in_queue === modQueue.some(queueItem => queueItem.id === logEntry.target?.id));
+            }
+        }
+
         if (modLog.length === 0) {
             logDebug(rule.verbose_logs, "No matching mod log entry!", result.verboseLogs);
             return result;

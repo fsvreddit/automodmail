@@ -100,7 +100,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const {isAdmin, isMod} = currentMessage.author;
 
-    const rulesYaml = await context.settings.get<string>(AppSetting.Rules);
+    const settings = await context.settings.getAll();
+
+    const rulesYaml = settings[AppSetting.Rules] as string ?? "";
     let rules = parseRules(rulesYaml);
 
     // Narrow down to eligible rules
@@ -202,8 +204,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     if (matchedRule.reply) {
         let replyMessage = matchedRule.reply;
 
-        const signoff = await context.settings.get<string>(AppSetting.Signoff);
-        const includeSignoffForMods = await context.settings.get<boolean>(AppSetting.IncludeSignoffForMods) ?? false;
+        const signoff = settings[AppSetting.Signoff] as string | undefined;
+        const includeSignoffForMods = settings[AppSetting.IncludeSignoffForMods] as boolean ?? false;
         if (signoff && (!isMod || includeSignoffForMods)) {
             replyMessage += `\n\n${signoff}`;
         }
@@ -212,7 +214,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subreddit.name));
         let language: Language | undefined;
         if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
-            const localeResult = await context.settings.get<string[]>(AppSetting.Locale) ?? ["enUS"];
+            const localeResult = settings[AppSetting.Locale] as string[] ?? ["enUS"];
             language = languageFromString(localeResult[0]);
         }
 
@@ -224,7 +226,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         }
         if (matchedRule.modActionTargetKind && language) {
             const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
-            let targetKind = await context.settings.get<string>(settingsKey);
+            let targetKind = settings[settingsKey] as string ?? "";
             if (!targetKind) {
                 targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
             }
@@ -235,7 +237,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         action.reply = replyMessage;
     }
 
-    const sendAfterDelay = await context.settings.get<number>(AppSetting.SecondsDelayBeforeSend) ?? 0;
+    const sendAfterDelay = settings[AppSetting.SecondsDelayBeforeSend] as number ?? 0;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({

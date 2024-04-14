@@ -13,6 +13,7 @@ export interface SearchOption {
 export interface ResponseRule {
     rule_friendly_name?: string,
     is_reply?: boolean,
+    is_first_user_reply?: boolean,
     subject?: string[],
     subject_options?: SearchOption,
     notsubject?: string[],
@@ -79,6 +80,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
         properties: {
             rule_friendly_name: {type: "string", minLength: 1, nullable: true},
             is_reply: {type: "boolean", nullable: true},
+            is_first_user_reply: {type: "boolean", nullable: true},
             subject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             subject_options: {
                 type: "object",

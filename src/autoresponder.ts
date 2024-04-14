@@ -45,7 +45,6 @@ interface ModmailAction {
  */
 export async function onModmailReceiveEvent (event: ModMail, context: TriggerContext) {
     console.log("Received modmail trigger event.");
-    console.log(`Event Message ID: ${event.messageId}`);
 
     if (!event.messageAuthor) {
         return;
@@ -70,10 +69,11 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
+    const participantName = conversationResponse.conversation.participant.name;
+
     const messagesInConversation = Object.values(conversationResponse.conversation.messages);
 
     const firstMessage = messagesInConversation[0];
-    console.log(`First Message ID: ${firstMessage.id ?? "undefined"}`);
     if (!firstMessage.id) {
         return;
     }
@@ -91,10 +91,19 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (isFirstMessage && currentMessage.author.name !== conversationResponse.conversation.participant.name) {
+    if (isFirstMessage && currentMessage.author.name !== participantName) {
         console.log("Outgoing modmail, first message. Quitting.");
         return;
     }
+
+    const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author && message.author.name === participantName)?.id;
+
+    console.log({
+        isFirstMessage,
+        isFirstUserReply,
+        firstMessageId: firstMessage.id,
+        currentMessageId: currentMessage.id,
+    });
 
     const {isAdmin, isMod} = currentMessage.author;
 
@@ -105,9 +114,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     // Narrow down to eligible rules
     if (isFirstMessage) {
-        rules = rules.filter(rule => !rule.is_reply);
+        rules = rules.filter(rule => !rule.is_reply && !rule.is_first_user_reply);
     } else {
-        rules = rules.filter(rule => rule.is_reply === true);
+        rules = rules.filter(rule => rule.is_reply || rule.is_first_user_reply && isFirstUserReply);
     }
 
     rules = rules.filter(rule => !rule.author || (rule.author && !rule.author.is_moderator || rule.author.is_moderator && isMod));

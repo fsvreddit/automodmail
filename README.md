@@ -1,6 +1,6 @@
 Like Automoderator, just for modmail. Allows sub mods to configure rules written in YAML to enable autoresponders, automate ban appeals and more. 
 
-For full documentation, please see [this wiki page](https://github.com/fsvreddit/automodmail/blob/main/redditWiki.md).
+For full documentation, please see [this page](https://github.com/fsvreddit/automodmail/blob/main/redditWiki.md).
 
 Modmail Automator is open source. You can find it on Github [here](https://github.com/fsvreddit/automodmail).
 

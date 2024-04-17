@@ -12,6 +12,8 @@ export interface SearchOption {
 
 export interface ResponseRule {
     rule_friendly_name?: string,
+    is_reply?: boolean,
+    is_first_user_reply?: boolean,
     subject?: string[],
     subject_options?: SearchOption,
     notsubject?: string[],
@@ -20,6 +22,10 @@ export interface ResponseRule {
     body_options?: SearchOption,
     notbody?: string[],
     notbody_options?: SearchOption,
+    subjectandbody?: string[],
+    subjectandbody_options?: SearchOption,
+    notsubjectandbody?: string[],
+    notsubjectandbody_options?: SearchOption,
     moderators_exempt?: boolean,
     admins_exempt?: boolean,
     author?: {
@@ -40,22 +46,25 @@ export interface ResponseRule {
         flair_css_class_options?: SearchOption,
         notflair_css_class?: string[],
         notflair_css_class_options?: SearchOption,
-        is_contributor?: boolean
-        is_moderator?: boolean
-        is_shadowbanned?: boolean
-        is_banned?: boolean
+        is_participant?: boolean,
+        is_contributor?: boolean,
+        is_moderator?: boolean,
+        is_shadowbanned?: boolean,
+        is_banned?: boolean,
     },
     mod_action?: {
         moderator_name?: string[],
         mod_action_type?: ModActionType,
         action_within?: string,
         action_reason?: string[],
+        still_in_queue?: boolean,
     },
     priority?: number,
     reply?: string,
     mute?: number,
     archive?: boolean,
     unban?: boolean,
+    approve_user?: boolean,
     verbose_logs?: boolean,
 }
 
@@ -70,6 +79,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
         type: "object",
         properties: {
             rule_friendly_name: {type: "string", minLength: 1, nullable: true},
+            is_reply: {type: "boolean", nullable: true},
+            is_first_user_reply: {type: "boolean", nullable: true},
             subject: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             subject_options: {
                 type: "object",
@@ -105,6 +116,28 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             },
             notbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             notbody_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
+            subjectandbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            subjectandbody_options: {
+                type: "object",
+                properties: {
+                    search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                    case_sensitive: {type: "boolean", nullable: true},
+                    negate: {type: "boolean", nullable: true},
+                },
+                nullable: true,
+                additionalProperties: false,
+            },
+            notsubjectandbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+            notsubjectandbody_options: {
                 type: "object",
                 properties: {
                     search_method: {type: "string", nullable: true, enum: matchSearchMethod},
@@ -190,6 +223,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
+                    is_participant: {type: "boolean", nullable: true},
                     is_contributor: {type: "boolean", nullable: true},
                     is_moderator: {type: "boolean", nullable: true},
                     is_shadowbanned: {type: "boolean", nullable: true},
@@ -205,6 +239,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"]},
                     action_within: {type: "string", nullable: true, pattern: dateComparatorPattern},
                     action_reason: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    still_in_queue: {type: "boolean", nullable: true},
                 },
                 nullable: true,
                 additionalProperties: false,
@@ -214,6 +249,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             mute: {type: "integer", nullable: true},
             archive: {type: "boolean", nullable: true},
             unban: {type: "boolean", nullable: true},
+            approve_user: {type: "boolean", nullable: true},
             verbose_logs: {type: "boolean", nullable: true},
         },
         additionalProperties: false,
@@ -232,7 +268,7 @@ export function parseRules (rules?: string): ResponseRule[] {
 
     // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
     const preprocessedRules: string[] = [];
-    const searchTypeRegex = /^(subject|body|notsubject|notbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class))?(?: \((.+)\))?:(.+)$/;
+    const searchTypeRegex = /^(subject|body|notsubject|notbody|subjectandbody|notsubjectandbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class))?(?: \((.+)\))?:(.+)$/;
     for (let line of rules.split("\n")) {
         if (line.startsWith("subject_regex")) {
             line = line.replace("subject_regex", "subject (regex)");
@@ -242,6 +278,14 @@ export function parseRules (rules?: string): ResponseRule[] {
             line = line.replace("name_regex", "name (regex)");
         } else if (line.trim().startsWith("~")) {
             line = line.replace("~", "not");
+        }
+
+        if (line.startsWith("subject+body") || line.startsWith("notsubject+body")) {
+            line = line.replace("subject+body", "subjectandbody");
+        }
+
+        if (line.startsWith("body+subject") || line.startsWith("notbody+subject")) {
+            line = line.replace("body+subject", "subjectandbody");
         }
 
         const matches = line.match(searchTypeRegex);
@@ -348,19 +392,53 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.author && rule.author.name && rule.author.name_options && rule.author.name_options.search_method === "regex") {
-        try {
-            rule.author.name.map(x => new RegExp(x));
-        } catch {
-            return "Invalid author name regex";
+    if (rule.author) {
+        if (rule.author.name && rule.author.name_options && rule.author.name_options.search_method === "regex") {
+            try {
+                rule.author.name.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author name regex";
+            }
         }
-    }
 
-    if (rule.author && rule.author.notname && rule.author.notname_options && rule.author.notname_options.search_method === "regex") {
-        try {
-            rule.author.notname.map(x => new RegExp(x));
-        } catch {
-            return "Invalid author ~name regex";
+        if (rule.author.notname && rule.author.notname_options && rule.author.notname_options.search_method === "regex") {
+            try {
+                rule.author.notname.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.flair_text && rule.author.flair_text_options && rule.author.flair_text_options.search_method === "regex") {
+            try {
+                rule.author.flair_text.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.notflair_text && rule.author.notflair_text_options && rule.author.notflair_text_options.search_method === "regex") {
+            try {
+                rule.author.notflair_text.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.flair_css_class && rule.author.flair_css_class_options && rule.author.flair_css_class_options.search_method === "regex") {
+            try {
+                rule.author.flair_css_class.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.notflair_css_class && rule.author.notflair_css_class_options && rule.author.notflair_css_class_options.search_method === "regex") {
+            try {
+                rule.author.notflair_css_class.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~name regex";
+            }
         }
     }
 
@@ -370,6 +448,18 @@ export function validateRule (rule: ResponseRule): string {
 
     if (rule.unban && (!rule.author || !rule.author.is_banned)) {
         return "You can only have an unban action if there is an author check for is_banned = true";
+    }
+
+    if (rule.moderators_exempt && rule.author && rule.author.is_moderator) {
+        return "You cannot have a rule where moderators are exempt but you're also checking that the author is a mod";
+    }
+
+    if (rule.author && rule.author.is_participant && rule.author.is_moderator) {
+        return "You cannot specify is_participant and is_moderator to be true at the same time";
+    }
+
+    if (rule.mute && rule.mute !== 3 && rule.mute !== 7 && rule.mute !== 28) {
+        return "Mute must be either 3, 7 or 28 days";
     }
 
     return "";

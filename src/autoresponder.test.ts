@@ -206,11 +206,136 @@ reply: |
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    console.log(rule);
-    // eslint-disable-next-line no-await-in-loop
     const ruleResult = await checkRule(undefined, "testsub", rule, "Verification Request", "this is a test", undefined, false, false);
-    console.log(ruleResult);
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
 
+test("subject+body matching subject", async () => {
+    const rules = `---
+# Subject and Body
+subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    const ruleResult = await checkRule(undefined, "testsub", rule, "This is a test", "message body", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeTruthy();
+});
+
+test("subject+body matching body", async () => {
+    const rules = `---
+# Subject and Body
+subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "this is a test", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeTruthy();
+});
+
+test("subject+body matching both", async () => {
+    const rules = `---
+# Subject and Body
+subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    const ruleResult = await checkRule(undefined, "testsub", rule, "this is a test", "this is a test", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeTruthy();
+});
+
+test("subject+body matching neither", async () => {
+    const rules = `---
+# Subject and Body
+subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "message body", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeFalsy();
+});
+
+test("~subject+body matching subject", async () => {
+    const rules = `---
+# Subject and Body
+~subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    const ruleResult = await checkRule(undefined, "testsub", rule, "This is a test", "message body", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeFalsy();
+});
+
+test("~subject+body matching body", async () => {
+    const rules = `---
+# Subject and Body
+~subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "this is a test", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeFalsy();
+});
+
+test("~subject+body matching both", async () => {
+    const rules = `---
+# Subject and Body
+~subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    const ruleResult = await checkRule(undefined, "testsub", rule, "this is a test", "this is a test", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeFalsy();
+});
+
+test("~subject+body matching neither", async () => {
+    const rules = `---
+# Subject and Body
+~subject+body: "test"
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    console.log(rule);
+    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "message body", undefined, false, false);
+
+    expect(ruleResult.ruleMatched).toBeTruthy();
+});

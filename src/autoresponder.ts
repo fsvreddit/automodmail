@@ -2,13 +2,13 @@
 import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
-import {addMinutes, addDays, addHours, addMonths, addWeeks, addYears, formatDistanceToNow, addSeconds} from "date-fns";
-import {isBanned, isContributor, replaceAll} from "./utility.js";
+import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative} from "date-fns";
+import {ThingPrefix, isBanned, isContributor, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
-import {AppSetting} from "./settings.js";
+import {AppSetting, defaultSignoff} from "./settings.js";
 import markdownEscape from "markdown-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
@@ -21,6 +21,7 @@ interface RuleMatchContext {
     mute?: number,
     archive?: boolean,
     unban?: boolean,
+    approve_user?: boolean,
     modActionDate?: Date,
     modActionTargetPermalink?: string,
     modActionTargetKind?: "post" | "comment",
@@ -34,6 +35,7 @@ interface ModmailAction {
     mute?: number
     archive?: boolean,
     unban?: boolean,
+    approve_user?: boolean,
 }
 
 /**
@@ -43,7 +45,6 @@ interface ModmailAction {
  */
 export async function onModmailReceiveEvent (event: ModMail, context: TriggerContext) {
     console.log("Received modmail trigger event.");
-    console.log(`Event Message ID: ${event.messageId}`);
 
     if (!event.messageAuthor) {
         return;
@@ -68,27 +69,61 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (conversationResponse.conversation.participant.name !== event.messageAuthor.name) {
-        console.log("Conversation author is not the same as participant - outgoing modmail");
-        return;
-    }
+    const participantName = conversationResponse.conversation.participant.name;
 
     const messagesInConversation = Object.values(conversationResponse.conversation.messages);
 
     const firstMessage = messagesInConversation[0];
-    console.log(`First Message ID: ${firstMessage.id ?? "undefined"}`);
-
-    // Check that the first message in the entire conversation was for this person.
-    if (!firstMessage.id || !event.messageId.includes(firstMessage.id)) {
-        console.log("Message isn't the very first. Quitting");
+    if (!firstMessage.id) {
         return;
     }
 
-    const rulesYaml = await context.settings.get<string>(AppSetting.Rules);
-    const rules = parseRules(rulesYaml);
+    const isFirstMessage = event.messageId.includes(firstMessage.id);
+    const currentMessage = messagesInConversation.find(message => message.id && event.messageId.includes(message.id));
+
+    if (!currentMessage) {
+        console.log("Cannot find current message!");
+        return;
+    }
+
+    if (!currentMessage.author) {
+        console.log("First message's author is not defined.");
+        return;
+    }
+
+    if (isFirstMessage && currentMessage.author.name !== participantName) {
+        console.log("Outgoing modmail, first message. Quitting.");
+        return;
+    }
+
+    const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author && message.author.name === participantName)?.id;
+
+    console.log({
+        isFirstMessage,
+        isFirstUserReply,
+        firstMessageId: firstMessage.id,
+        currentMessageId: currentMessage.id,
+    });
+
+    const {isAdmin, isMod} = currentMessage.author;
+
+    const settings = await context.settings.getAll();
+
+    const rulesYaml = settings[AppSetting.Rules] as string ?? "";
+    let rules = parseRules(rulesYaml);
+
+    // Narrow down to eligible rules
+    if (isFirstMessage) {
+        rules = rules.filter(rule => !rule.is_reply && !rule.is_first_user_reply);
+    } else {
+        rules = rules.filter(rule => rule.is_reply || rule.is_first_user_reply && isFirstUserReply);
+    }
+
+    rules = rules.filter(rule => !rule.author || (rule.author && !rule.author.is_moderator || rule.author.is_moderator && isMod));
+    rules = rules.filter(rule => !rule.author || rule.author && (rule.author.is_participant === undefined || rule.author.is_participant === currentMessage.author?.isParticipant));
 
     if (rules.length === 0) {
-        console.log("No rules are defined. Quitting.");
+        console.log("No eligible rules exist for a message in this state. Quitting.");
         return;
     }
 
@@ -100,15 +135,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         // Ignore - leave participant variable undefined.
     }
 
-    if (!firstMessage.author) {
-        console.log("First message's author is not defined.");
-        return;
-    }
-
-    const {isAdmin, isMod} = firstMessage.author;
-
     const subject = conversationResponse.conversation.subject ?? "";
-    const body = firstMessage.bodyMarkdown ?? "";
+    const body = currentMessage.bodyMarkdown ?? "";
     const subreddit = await context.reddit.getCurrentSubreddit();
 
     const processedRules: RuleMatchContext[] = [];
@@ -177,13 +205,15 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         archive: matchedRule.archive,
         mute: matchedRule.mute,
         unban: matchedRule.unban,
+        approve_user: matchedRule.approve_user,
     };
 
     if (matchedRule.reply) {
         let replyMessage = matchedRule.reply;
 
-        const signoff = await context.settings.get<string>(AppSetting.Signoff);
-        if (signoff) {
+        const signoff = settings[AppSetting.Signoff] as string ?? defaultSignoff;
+        const includeSignoffForMods = settings[AppSetting.IncludeSignoffForMods] as boolean ?? false;
+        if (signoff && (!isMod || includeSignoffForMods)) {
             replyMessage += `\n\n${signoff}`;
         }
 
@@ -191,19 +221,20 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subreddit.name));
         let language: Language | undefined;
         if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
-            const localeResult = await context.settings.get<string[]>(AppSetting.Locale) ?? ["enUS"];
+            const localeResult = settings[AppSetting.Locale] as string[] ?? ["enUS"];
             language = languageFromString(localeResult[0]);
         }
 
         if (matchedRule.modActionDate && language) {
             replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, {locale: language.locale}));
+            replyMessage = replaceAll(replyMessage, "{{mod_action_relative_time}}", formatRelative(matchedRule.modActionDate, new Date(), {locale: language.locale}));
         }
         if (matchedRule.modActionTargetPermalink) {
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
         }
         if (matchedRule.modActionTargetKind && language) {
             const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
-            let targetKind = await context.settings.get<string>(settingsKey);
+            let targetKind = settings[settingsKey] as string ?? "";
             if (!targetKind) {
                 targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
             }
@@ -214,7 +245,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         action.reply = replyMessage;
     }
 
-    const sendAfterDelay = await context.settings.get<number>(AppSetting.SecondsDelayBeforeSend) ?? 0;
+    const sendAfterDelay = settings[AppSetting.SecondsDelayBeforeSend] as number ?? 0;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
@@ -235,9 +266,8 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
             isInternal: false,
             isAuthorHidden: true,
         });
+        console.log("Replied to modmail");
     }
-
-    console.log("Replied to modmail");
 
     if (action.mute) {
         await context.reddit.modMail.muteConversation({
@@ -252,10 +282,18 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         console.log("Conversation archived");
     }
 
-    if (action.unban) {
+    if (action.unban || action.approve_user) {
         const subreddit = await context.reddit.getCurrentSubreddit();
-        await context.reddit.unbanUser(action.username, subreddit.name);
-        console.log("User unbanned");
+
+        if (action.unban) {
+            await context.reddit.unbanUser(action.username, subreddit.name);
+            console.log("User unbanned");
+        }
+
+        if (action.approve_user) {
+            await context.reddit.approveUser(action.username, subreddit.name);
+            console.log("User has been added as approved user");
+        }
     }
 }
 
@@ -294,6 +332,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         mute: rule.mute,
         archive: rule.archive,
         unban: rule.unban,
+        approve_user: rule.approve_user,
         verboseLogs: [],
     };
 
@@ -301,7 +340,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         logDebug(rule.verbose_logs, `Processing rule with name "${rule.rule_friendly_name}"`, result.verboseLogs);
     }
 
-    if (rule.moderators_exempt !== false && userIsModerator) {
+    if (rule.moderators_exempt !== false && userIsModerator && !(rule.author && rule.author.is_moderator)) {
         logDebug(rule.verbose_logs, "Rule exempts moderators, and user is a mod.", result.verboseLogs);
         return result;
     }
@@ -344,6 +383,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             return result;
         } else {
             logDebug(rule.verbose_logs, "Negated body did not match, so check passes.", result.verboseLogs);
+        }
+    }
+
+    if (rule.subjectandbody) {
+        if (!checkTextMatch(subject, rule.subjectandbody, rule.subjectandbody_options) && !checkTextMatch(body, rule.subjectandbody, rule.subjectandbody_options)) {
+            logDebug(rule.verbose_logs, "subject+body does not match.", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "subject+body matched successfully.", result.verboseLogs);
+        }
+    }
+
+    if (rule.notsubjectandbody) {
+        if (!checkTextMatch(subject, rule.notsubjectandbody, rule.notsubjectandbody_options) || !checkTextMatch(body, rule.notsubjectandbody, rule.notsubjectandbody_options)) {
+            logDebug(rule.verbose_logs, "Negated subject+body matched, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Negated subject+body did not match, so check passes", result.verboseLogs);
         }
     }
 
@@ -509,6 +566,17 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 
+        if (rule.mod_action.still_in_queue !== undefined) {
+            const modQueue = await context.reddit.getModQueue({
+                subreddit: subredditName,
+                type: "all",
+            }).all();
+
+            if (rule.mod_action.still_in_queue) {
+                modLog = modLog.filter(logEntry => logEntry.target && rule.mod_action?.still_in_queue === modQueue.some(queueItem => queueItem.id === logEntry.target?.id));
+            }
+        }
+
         if (modLog.length === 0) {
             logDebug(rule.verbose_logs, "No matching mod log entry!", result.verboseLogs);
             return result;
@@ -519,9 +587,9 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         result.modActionDate = modLog[0].createdAt;
         if (modLog[0].target) {
             result.modActionTargetPermalink = modLog[0].target.permalink;
-            if (modLog[0].target.id.startsWith("t1")) {
+            if (modLog[0].target.id.startsWith(ThingPrefix.Comment)) {
                 result.modActionTargetKind = "comment";
-            } else if (modLog[0].target.id.startsWith("t3")) {
+            } else if (modLog[0].target.id.startsWith(ThingPrefix.Post)) {
                 result.modActionTargetKind = "post";
             }
         }
@@ -590,22 +658,22 @@ export function meetsDateThreshold (input: Date, threshold: string, defaultOpera
     let comparisonDate: Date | undefined;
     switch (interval) {
         case "minute":
-            comparisonDate = addMinutes(new Date(), -value);
+            comparisonDate = subMinutes(new Date(), value);
             break;
         case "hour":
-            comparisonDate = addHours(new Date(), -value);
+            comparisonDate = subHours(new Date(), value);
             break;
         case "day":
-            comparisonDate = addDays(new Date(), -value);
+            comparisonDate = subDays(new Date(), value);
             break;
         case "week":
-            comparisonDate = addWeeks(new Date(), -value);
+            comparisonDate = subWeeks(new Date(), value);
             break;
         case "month":
-            comparisonDate = addMonths(new Date(), -value);
+            comparisonDate = subMonths(new Date(), value);
             break;
         case "year":
-            comparisonDate = addYears(new Date(), -value);
+            comparisonDate = subYears(new Date(), value);
             break;
     }
 

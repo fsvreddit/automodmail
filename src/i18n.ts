@@ -1,5 +1,5 @@
 import {Locale} from "date-fns";
-import {enUS, es, fr, pt, ro, it, de, tr, nl, da, sv, fi, pl, ru, hr, nb} from "date-fns/locale";
+import {enUS, enGB, es, fr, pt, ro, it, de, tr, nl, da, sv, fi, pl, ru, hr, nb} from "date-fns/locale";
 
 export interface Language {
     languageName: string,
@@ -10,7 +10,8 @@ export interface Language {
 }
 
 export const languageList: Language[] = [
-    {languageName: "English", isoCode: "en", locale: enUS, postWord: "post", commentWord: "comment"},
+    {languageName: "English (US)", isoCode: "en", locale: enUS, postWord: "post", commentWord: "comment"},
+    {languageName: "English (UK)", isoCode: "enGB", locale: enGB, postWord: "post", commentWord: "comment"},
     {languageName: "dansk", isoCode: "da", locale: da, postWord: "indlæg", commentWord: "kommentar"},
     {languageName: "Deutsch", isoCode: "de", locale: de, postWord: "Beitrag", commentWord: "Kommentar"},
     {languageName: "español", isoCode: "es", locale: es, postWord: "publicación", commentWord: "comentario"},

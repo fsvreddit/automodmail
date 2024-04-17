@@ -4,7 +4,7 @@ Like AutoModerator, just for modmail.
 
 This app allows subreddit moderators to define rules using YAML to autorespond to incoming modmails, and optionally archive the modmail afterwards. 
 
-The intended use case in most cases is as a "first line" response to common questions, with users invited to reply and ask for more assistance if the autoresponder doesn't answer their question. This app will only ever respond to the first modmail in the chain.
+The intended use case in most cases is as a "first line" response to common questions, with users invited to reply and ask for more assistance if the autoresponder doesn't answer their question. By default, the app will only respond to the first modmail in the chain but rules can be authored to act on replies.
 
 The app supports a wide variety of different checks on three main categories of data: The modmail itself (subject and body), account properties (including age and karma) and recent mod actions made against the user.
 
@@ -26,6 +26,8 @@ If you need a string to start with a > character, you must enclose it in quotes 
 
 ## Modmail properties
 
+`is_reply` checks to see if the message is a reply or the original message, taking a value of true or false. If this is not entered, the rule will only act on the initial message, and then only if the message is an inbound one. Rules are never checked on the first message if it is a message from a moderator to a user. `is_first_user_reply` works similarly, but will only handle the first reply from the user that the modmail thread is about. This can be useful to allow autoresponses once but not indefinitely.
+
 `subject` matches the subject of the incoming modmail, and performs a match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
 
 All four of these modmail properties checks can take a single value or an array of values. The following are all valid:
@@ -39,6 +41,10 @@ All four of these modmail properties checks can take a single value or an array 
         - comments not showing
 
 All four of these can also support negation e.g. `~subject`. If you use negation, then none of the search terms may match. You can use normal and negated properties together e.g. `body` and `~body` may appear in the same rule, but `body` cannot appear twice.
+
+Like Automod, you can also use `subject+body`, `~subject+body`, `body+subject` or `~body+subject` to check both fields at the same time. For `subject+body`, a check passes if either subject or body match. for `~subject+body`, the check passes if neither matches.
+
+"Body" refers to the message body of the latest message when is_reply is true.
 
 ### Modifiers
 
@@ -103,10 +109,12 @@ The app supports several other properties about users.
     author:
         flair_css_class (full_exact): "bot"
 
-There are also four true/false checks on account properties that may be useful: `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
+There are also five true/false checks on account properties that may be useful: `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 
     author:
         is_banned: "true"
+
+The "participant" is the user who the modmail thread is about. Most rules will never need to check this value, but it may be useful if you want to define rules that act on replies to previous modmails.
 
 You can also check the account name. `name` matches the user name and supports the same modifiers as `subject` and `body` as mentioned above. For example:
 
@@ -138,6 +146,8 @@ Sub properties are:
     action_reason: ["ban evasion", "crowd control"]
 
     action_reason: "low karma"
+
+`still_in_queue`: True or false. Checks to see if a post or comment matching the mod action is still in the mod queue.
 
 **Note**: The app will only look back through the most recent 200 mod actions that match the specified moderator name(s) and/or mod actions. As a result, mod action checks are usually only suitable for fairly recent actions especially if you have a subreddit with a busy mod log. 
 
@@ -178,6 +188,8 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `unban` unbans the user (if they were already banned). E.g. `unban: "true"`.
 
+`approve_user` adds the user as an approved submitter (if they are not already one). E.g. `approve_user: "true"`.
+
 ### Placeholders on replies
 
 The following placeholders are all supported:
@@ -188,11 +200,13 @@ The following placeholders are all supported:
 
 `{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. Example output formats can be seen [here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
 
+`{{mod_action_relative_time}}` - a human readable relative date in words. Example output formats can be seen [here](https://date-fns.org/v3.6.0/docs/formatRelative). Like `{{mod_action_timestamp_to_now}}`, the output is localised.
+
 `{{mod_action_target_permalink}}` - the link to the post or comment (if applicable) that the mod action was taken against.
 
 `{{mod_action_target_kind}}` - Either "post" or "comment". Like the timespan above, this will respect the language chosen. You can also choose your own terms for "post" and "comment" in the configuration options if you need to support further languages, or if you think a better translation could have been used (if you do have any suggestions on improving translations, please contact /u/fsv!)
 
-The three mod_action placeholders will only work if a mod_action check is present in the rule. 
+The four mod_action placeholders will only work if a mod_action check is present in the rule. 
 
 ## Debug options
 
@@ -234,7 +248,7 @@ Here's an example rule that replies to a user who might be querying why their co
 Here's an example of a rule that checks for keywords relating to ban appeals, but for users who might not actually be banned (more common than I wish!). If the user isn't banned, they'll receive an auto response telling them so.
 
     ---
-    subject: ["ban appeal", "why am i banned", "why banned"]
+    subject+body: ["ban appeal", "why am i banned", "why banned"]
     author:
         is_banned: false
     reply: |
@@ -287,6 +301,48 @@ Occasionally, subreddits will close temporarily such as in the wake of a major i
 
         Sorry, but {{subreddit}} is temporarily closed. We expect to reopen at 9am GMT on Monday and aren't accepting requests to join in the meantime.
     archive: true
+
+## As an enabler for mod macros
+
+You can use the is_reply and is_moderator functions to enable mod macros. For example:
+
+    ---
+    is_reply: true
+    body: "$$karma"
+    author:
+        is_moderator: true
+    reply: "Your karma is too low. Learn [here](url) how to raise it."
+    archive: true
+
+For this kind of functionality, I recommend that the messages that would trigger these are sent as private moderator notes.
+
+## To automate approvals to private subreddits
+
+You could use sets of rules that work together to automate approving users into a private subreddit.
+
+    ---
+    author:
+        is_contributor: false
+        is_banned: false
+    reply: |
+        This sub is private but allows members to self-approve if they agree to the rules beforehand. 
+
+        - Rule 1
+        - Rule 2
+
+        If you agree to follow these rules, please reply with "!agree"
+    archive: true
+    ---
+    is_reply: true
+    body: "!agree"
+    author:
+        is_participant: true
+        is_contributor: false
+        is_banned: false
+    reply: "Thank you for accepting our rules. You will now be made an approved contributor to {{subreddit}}.
+    approve_user: true
+    archive: true
+    ---
 
 # Limitations
 

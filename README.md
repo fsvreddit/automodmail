@@ -1,10 +1,19 @@
 Like Automoderator, just for modmail. Allows sub mods to configure rules written in YAML to enable autoresponders, automate ban appeals and more. 
 
-For full documentation, please see [this wiki page](https://www.reddit.com/r/fsvapps/wiki/auto-modmail).
+For full documentation, please see [this page](https://www.reddit.com/r/fsvapps/wiki/auto-modmail).
 
 Modmail Automator is open source. You can find it on Github [here](https://github.com/fsvreddit/automodmail).
 
 ## Version History
+
+### v1.5
+
+- Add `subject+body` check, as well as negated equivalent `~subject+body`
+- Add `approve_user` action
+- Add `is_reply` and `is_first_user_reply` checks, enabling rules that act on replies.
+- Add `is_participant` check, enabling rules that only act on the user the modmail thread is about
+- Add `still_in_queue` property to mod_action checks, allowing you to react differently depending on whether a matching item is currently modqueued or not
+- Add `{{mod_action_relative_time}}` placeholder for reply messages
 
 ### v1.4
 

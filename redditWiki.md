@@ -52,9 +52,9 @@ Like Automod, you can also use `subject+body`, `~subject+body`, `body+subject` o
 
 * `subject (includes)` will find the text anywhere - e.g. "and" will match the subject "sandwich". This is the default behaviour if no modifier is used.
 * `subject (includes-word)` will only match if the search term matches an entire word.
-* `subject (starts_with)` will only match text at the start of the subject.
-* `subject (ends_with)` will only match text at the start of the subject.
-* `subject (full_exact)` will match the entire subject completely.
+* `subject (starts-with)` will only match text at the start of the subject.
+* `subject (ends-with)` will only match text at the start of the subject.
+* `subject (full-exact)` will match the entire subject completely.
 * `subject (regex)` will match using a regular expression. Unlike AutoModerator, this cannot be used in conjunction with one of the other modifiers above but it can be used with the case-sensitive modifier below.
 
 Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case_sensitive)`).

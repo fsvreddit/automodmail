@@ -107,7 +107,7 @@ The app supports several other properties about users.
         ~flair_text (regex): ["^verified", "^approved"]
 
     author:
-        flair_css_class (full_exact): "bot"
+        flair_css_class (full-exact): "bot"
 
 There are also five true/false checks on account properties that may be useful: `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 

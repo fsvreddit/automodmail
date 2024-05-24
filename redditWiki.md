@@ -192,6 +192,16 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `approve_user` adds the user as an approved submitter (if they are not already one). E.g. `approve_user: "true"`.
 
+You can also set a flair by adding the `set_flair` property under the `author` attribute e.g.
+
+    author:
+        set_flair:
+            override_flair: true
+            flair_text: "Authorised"
+            flair_css_class: "authorised"
+
+Properties supported for set_flair also includes `flair_template_id`. If override_flair is false or missing, users with existing flair won't have a new flair set.
+
 ### Placeholders on replies
 
 The following placeholders are all supported:

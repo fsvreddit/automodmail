@@ -9,6 +9,8 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 ### v1.6
 
 - Fixed a bug that meant rules with author checks would incorrectly match on shadowbanned users
+- New checks: `body_shorter_than`, `body_longer_than`, `subject_shorter_than`, `subject_longer_than`.
+- New action: `set_flair`.
 
 ### v1.5
 

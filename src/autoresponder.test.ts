@@ -180,11 +180,11 @@ test("Both subject and negated subject", async () => {
         mute: 3,
     };
 
-    const resultNotMatching = await checkRule(undefined, "subname", rule, "username", "hello and goodbye", "");
+    const resultNotMatching = await checkRule(undefined, "subname", rule, "hello and goodbye", "", "username");
     expect(resultNotMatching.ruleMatched).toBeFalsy();
     expect(resultNotMatching.mute).toEqual(3);
 
-    const resultMatching = await checkRule(undefined, "subname", rule, "username", "hello and greetings", "");
+    const resultMatching = await checkRule(undefined, "subname", rule, "hello and greetings", "", "username");
     expect(resultMatching.ruleMatched).toBeTruthy();
     expect(resultMatching.mute).toEqual(3);
 });
@@ -195,7 +195,6 @@ test("Reproduction scenario from dcltw", async () => {
 # Verification No Link
 ~body (includes-word): ["test", "this", "hello"]
 subject: Verification Request
-verbose_logs: true
 author:
     is_banned: false
 reply: |

@@ -22,10 +22,14 @@ export interface ResponseRule {
     body_options?: SearchOption,
     notbody?: string[],
     notbody_options?: SearchOption,
+    body_shorter_than?: number,
+    body_longer_than?: number,
     subjectandbody?: string[],
     subjectandbody_options?: SearchOption,
     notsubjectandbody?: string[],
     notsubjectandbody_options?: SearchOption,
+    subject_shorter_than?: number,
+    subject_longer_than?: number,
     moderators_exempt?: boolean,
     admins_exempt?: boolean,
     author?: {
@@ -125,6 +129,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
+            body_shorter_than: {type: "integer", nullable: true},
+            body_longer_than: {type: "integer", nullable: true},
             subjectandbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             subjectandbody_options: {
                 type: "object",
@@ -147,6 +153,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
+            subject_shorter_than: {type: "integer", nullable: true},
+            subject_longer_than: {type: "integer", nullable: true},
             moderators_exempt: {type: "boolean", nullable: true},
             admins_exempt: {type: "boolean", nullable: true},
             author: {

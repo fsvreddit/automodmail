@@ -368,6 +368,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
+    if (rule.subject_shorter_than) {
+        if (subject.length < rule.subject_shorter_than) {
+            logDebug(rule.verbose_logs, "Subject is shorter than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Subject is too long, so rule fails", result.verboseLogs);
+            return result;
+        }
+    }
+
+    if (rule.subject_longer_than) {
+        if (subject.length > rule.subject_longer_than) {
+            logDebug(rule.verbose_logs, "Subject is longer than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Subject is too short, so rule fails", result.verboseLogs);
+            return result;
+        }
+    }
+
     if (rule.body) {
         if (!checkTextMatch(body, rule.body, rule.body_options)) {
             logDebug(rule.verbose_logs, "Body does not match.", result.verboseLogs);
@@ -383,6 +401,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             return result;
         } else {
             logDebug(rule.verbose_logs, "Negated body did not match, so check passes.", result.verboseLogs);
+        }
+    }
+
+    if (rule.body_shorter_than) {
+        if (body.length < rule.body_shorter_than) {
+            logDebug(rule.verbose_logs, "Body is shorter than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Body is too long, so rule fails", result.verboseLogs);
+            return result;
+        }
+    }
+
+    if (rule.body_longer_than) {
+        if (body.length > rule.body_longer_than) {
+            logDebug(rule.verbose_logs, "Body is longer than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Body is too short, so rule fails", result.verboseLogs);
+            return result;
         }
     }
 

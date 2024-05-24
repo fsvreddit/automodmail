@@ -338,3 +338,75 @@ mute: 28
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
+
+test("Body shorter than", async () => {
+    const rules = `---
+body_shorter_than: 5
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    console.log(rule);
+    const ruleResult1 = await checkRule(undefined, "testsub", rule, "message subject", "a", "username", undefined, false, false);
+    expect(ruleResult1.ruleMatched).toBeTruthy();
+
+    const ruleResult2 = await checkRule(undefined, "testsub", rule, "message subject", "abcdef", "username", undefined, false, false);
+    expect(ruleResult2.ruleMatched).toBeFalsy();
+});
+
+test("Body longer than", async () => {
+    const rules = `---
+body_longer_than: 5
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    console.log(rule);
+    const ruleResult1 = await checkRule(undefined, "testsub", rule, "message subject", "abcdef", "username", undefined, false, false);
+    expect(ruleResult1.ruleMatched).toBeTruthy();
+
+    const ruleResult2 = await checkRule(undefined, "testsub", rule, "message subject", "a", "username", undefined, false, false);
+    expect(ruleResult2.ruleMatched).toBeFalsy();
+});
+
+test("Subject shorter than", async () => {
+    const rules = `---
+subject_shorter_than: 5
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    console.log(rule);
+    const ruleResult1 = await checkRule(undefined, "testsub", rule, "a", "message body", "username", undefined, false, false);
+    expect(ruleResult1.ruleMatched).toBeTruthy();
+
+    const ruleResult2 = await checkRule(undefined, "testsub", rule, "abcdef", "message body", "username", undefined, false, false);
+    expect(ruleResult2.ruleMatched).toBeFalsy();
+});
+
+test("Subject longer than", async () => {
+    const rules = `---
+subject_longer_than: 5
+mute: 28
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+
+    const rule = parsedRules[0];
+    console.log(rule);
+    const ruleResult1 = await checkRule(undefined, "testsub", rule, "abcdef", "message body", "username", undefined, false, false);
+    expect(ruleResult1.ruleMatched).toBeTruthy();
+
+    const ruleResult2 = await checkRule(undefined, "testsub", rule, "a", "message body", "username", undefined, false, false);
+    expect(ruleResult2.ruleMatched).toBeFalsy();
+});

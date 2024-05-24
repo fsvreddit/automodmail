@@ -342,8 +342,6 @@ mute: 28
 ---`;
 
     const rules = parseRules(input);
-    console.log(rules);
-
     expect(rules[0].author).toBeDefined();
     expect(rules[0].author?.set_flair).toBeDefined();
     expect(rules[0].author?.set_flair?.set_flair_text).toEqual("flairy flair");

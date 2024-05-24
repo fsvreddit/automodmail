@@ -55,6 +55,12 @@ export interface ResponseRule {
         is_moderator?: boolean,
         is_shadowbanned?: boolean,
         is_banned?: boolean,
+        set_flair?: {
+            override_flair?: boolean,
+            set_flair_text?: string,
+            set_flair_css_class?: string,
+            set_flair_template_id?: string,
+        },
     },
     mod_action?: {
         moderator_name?: string[],
@@ -236,6 +242,17 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     is_moderator: {type: "boolean", nullable: true},
                     is_shadowbanned: {type: "boolean", nullable: true},
                     is_banned: {type: "boolean", nullable: true},
+                    set_flair: {
+                        type: "object",
+                        properties: {
+                            override_flair: {type: "boolean", nullable: true},
+                            set_flair_text: {type: "string", nullable: true},
+                            set_flair_css_class: {type: "string", nullable: true},
+                            set_flair_template_id: {type: "string", nullable: true, pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
                 },
                 nullable: true,
                 additionalProperties: false,

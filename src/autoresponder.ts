@@ -22,6 +22,12 @@ interface RuleMatchContext {
     archive?: boolean,
     unban?: boolean,
     approve_user?: boolean,
+    set_flair?: {
+        override_flair?: boolean,
+        set_flair_text?: string,
+        set_flair_css_class?: string,
+        set_flair_template_id?: string,
+    },
     modActionDate?: Date,
     modActionTargetPermalink?: string,
     modActionTargetKind?: "post" | "comment",
@@ -36,6 +42,12 @@ interface ModmailAction {
     archive?: boolean,
     unban?: boolean,
     approve_user?: boolean,
+    set_flair?: {
+        override_flair?: boolean,
+        set_flair_text?: string,
+        set_flair_css_class?: string,
+        set_flair_template_id?: string,
+    },
 }
 
 /**
@@ -206,6 +218,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         mute: matchedRule.mute,
         unban: matchedRule.unban,
         approve_user: matchedRule.approve_user,
+        set_flair: matchedRule.set_flair,
     };
 
     if (matchedRule.reply) {
@@ -282,7 +295,7 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         console.log("Conversation archived");
     }
 
-    if (action.unban || action.approve_user) {
+    if (action.unban || action.approve_user || action.set_flair) {
         const subreddit = await context.reddit.getCurrentSubreddit();
 
         if (action.unban) {
@@ -293,6 +306,30 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         if (action.approve_user) {
             await context.reddit.approveUser(action.username, subreddit.name);
             console.log("User has been added as approved user");
+        }
+
+        if (action.set_flair) {
+            let canSetFlair = true;
+            if (!action.set_flair.override_flair) {
+                const user = await context.reddit.getUserByUsername(action.username);
+                const currentFlair = await user.getUserFlairBySubreddit(subreddit.name);
+                if (currentFlair) {
+                    canSetFlair = false;
+                }
+            }
+
+            if (canSetFlair) {
+                await context.reddit.setUserFlair({
+                    subredditName: subreddit.name,
+                    username: action.username,
+                    text: action.set_flair.set_flair_text,
+                    cssClass: action.set_flair.set_flair_css_class,
+                    flairTemplateId: action.set_flair.set_flair_template_id,
+                });
+                console.log("New flair set");
+            } else {
+                console.log("User already has a flair, cannot set.");
+            }
         }
     }
 }
@@ -333,6 +370,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         archive: rule.archive,
         unban: rule.unban,
         approve_user: rule.approve_user,
+        set_flair: rule.author?.set_flair,
         verboseLogs: [],
     };
 

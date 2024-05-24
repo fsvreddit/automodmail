@@ -190,6 +190,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
                 if (rule.unban) {
                     debugOutput += "* Unban user\n";
                 }
+                if (rule.set_flair) {
+                    debugOutput += "* Set Flair\n";
+                }
                 debugOutput += "\n";
             }
         }

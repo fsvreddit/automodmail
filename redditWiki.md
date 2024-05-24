@@ -65,6 +65,8 @@ Previous versions of this app used different checks `subject_regex` and `body_re
 
 Account properties come under the `author` value, just like in AutoModerator. Two broad categories (threshold checks and other account properties) are supported, and both can be specified in the same rule.
 
+If a user is shadowbanned, most account checks cannot be performed - only the `name` and `is_shadowbanned` checks will work. A rule will always be skipped for shadowbanned users if other account checks are specified.
+
 ### Threshold checks
 
 The tool supports four threshold checks: `post_karma`, `comment_karma`, `combined_karma` and `account_age`. Due to limitations of the Community Apps platform, it is not possible to include subreddit karma checks.

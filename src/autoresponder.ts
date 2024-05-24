@@ -144,7 +144,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     for (const rule of rules) {
         // eslint-disable-next-line no-await-in-loop
-        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, participant, isMod, isAdmin);
+        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
         processedRules.push(ruleResult);
 
         if (ruleResult.ruleMatched) {
@@ -324,7 +324,7 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-export async function checkRule (context: TriggerContext | undefined, subredditName: string, rule: ResponseRule, subject: string, body: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
+export async function checkRule (context: TriggerContext | undefined, subredditName: string, rule: ResponseRule, subject: string, body: string, username: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -407,24 +407,6 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     if (rule.author) {
         if (participant) {
             // Most checks need the user to be not shadowbanned.
-            if (rule.author.name) {
-                if (!checkTextMatch(participant.username, rule.author.name, rule.author.name_options)) {
-                    logDebug(rule.verbose_logs, "Author name doesn't match", result.verboseLogs);
-                    return result;
-                } else {
-                    logDebug(rule.verbose_logs, "Author name matches", result.verboseLogs);
-                }
-            }
-
-            if (rule.author.notname) {
-                if (!checkTextMatch(participant.username, rule.author.notname, rule.author.notname_options)) {
-                    logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
-                    return result;
-                } else {
-                    logDebug(rule.verbose_logs, "Negated author name does not match, so check passes", result.verboseLogs);
-                }
-            }
-
             const thresholdChecks: boolean[] = [];
             if (rule.author.post_karma) {
                 const thresholdMatched = meetsNumericThreshold(participant.linkKarma, rule.author.post_karma);
@@ -536,6 +518,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
         }
 
+        if (rule.author.name) {
+            if (!checkTextMatch(username, rule.author.name, rule.author.name_options)) {
+                logDebug(rule.verbose_logs, "Author name doesn't match", result.verboseLogs);
+                return result;
+            } else {
+                logDebug(rule.verbose_logs, "Author name matches", result.verboseLogs);
+            }
+        }
+
+        if (rule.author.notname) {
+            if (!checkTextMatch(username, rule.author.notname, rule.author.notname_options)) {
+                logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
+                return result;
+            } else {
+                logDebug(rule.verbose_logs, "Negated author name does not match, so check passes", result.verboseLogs);
+            }
+        }
+
         if (rule.author.is_shadowbanned !== undefined) {
             if (rule.author.is_shadowbanned !== (participant === undefined)) {
                 logDebug(rule.verbose_logs, "Shadowban check failed, skipping rule.", result.verboseLogs);
@@ -543,6 +543,12 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             } else {
                 logDebug(rule.verbose_logs, "Shadowban check passed.", result.verboseLogs);
             }
+        }
+
+        if (!participant && (rule.author.account_age || rule.author.combined_karma || rule.author.comment_karma || rule.author.flair_css_class || rule.author.flair_text || rule.author.is_banned || rule.author.is_contributor)) {
+            // Participant is undefined, and uncheckable author checks exist.
+            logDebug(rule.verbose_logs, "Author is shadobanned and uncheckable author checks exist.", result.verboseLogs);
+            return result;
         }
     }
 

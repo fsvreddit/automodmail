@@ -624,7 +624,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
 
         if (!participant && (rule.author.account_age || rule.author.combined_karma || rule.author.comment_karma || rule.author.flair_css_class || rule.author.flair_text || rule.author.is_banned !== undefined || rule.author.is_contributor !== undefined)) {
             // Participant is undefined, and uncheckable author checks exist.
-            logDebug(rule.verbose_logs, "Author is shadobanned and uncheckable author checks exist.", result.verboseLogs);
+            logDebug(rule.verbose_logs, "Author is shadowbanned and uncheckable author checks exist.", result.verboseLogs);
             return result;
         }
     }

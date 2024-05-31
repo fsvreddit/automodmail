@@ -22,10 +22,14 @@ export interface ResponseRule {
     body_options?: SearchOption,
     notbody?: string[],
     notbody_options?: SearchOption,
+    body_shorter_than?: number,
+    body_longer_than?: number,
     subjectandbody?: string[],
     subjectandbody_options?: SearchOption,
     notsubjectandbody?: string[],
     notsubjectandbody_options?: SearchOption,
+    subject_shorter_than?: number,
+    subject_longer_than?: number,
     moderators_exempt?: boolean,
     admins_exempt?: boolean,
     author?: {
@@ -51,6 +55,12 @@ export interface ResponseRule {
         is_moderator?: boolean,
         is_shadowbanned?: boolean,
         is_banned?: boolean,
+        set_flair?: {
+            override_flair?: boolean,
+            set_flair_text?: string,
+            set_flair_css_class?: string,
+            set_flair_template_id?: string,
+        },
     },
     mod_action?: {
         moderator_name?: string[],
@@ -125,6 +135,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
+            body_shorter_than: {type: "integer", nullable: true},
+            body_longer_than: {type: "integer", nullable: true},
             subjectandbody: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
             subjectandbody_options: {
                 type: "object",
@@ -147,6 +159,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
+            subject_shorter_than: {type: "integer", nullable: true},
+            subject_longer_than: {type: "integer", nullable: true},
             moderators_exempt: {type: "boolean", nullable: true},
             admins_exempt: {type: "boolean", nullable: true},
             author: {
@@ -228,6 +242,17 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     is_moderator: {type: "boolean", nullable: true},
                     is_shadowbanned: {type: "boolean", nullable: true},
                     is_banned: {type: "boolean", nullable: true},
+                    set_flair: {
+                        type: "object",
+                        properties: {
+                            override_flair: {type: "boolean", nullable: true},
+                            set_flair_text: {type: "string", nullable: true},
+                            set_flair_css_class: {type: "string", nullable: true},
+                            set_flair_template_id: {type: "string", nullable: true, pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
                 },
                 nullable: true,
                 additionalProperties: false,

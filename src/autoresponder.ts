@@ -22,6 +22,12 @@ interface RuleMatchContext {
     archive?: boolean,
     unban?: boolean,
     approve_user?: boolean,
+    set_flair?: {
+        override_flair?: boolean,
+        set_flair_text?: string,
+        set_flair_css_class?: string,
+        set_flair_template_id?: string,
+    },
     modActionDate?: Date,
     modActionTargetPermalink?: string,
     modActionTargetKind?: "post" | "comment",
@@ -36,6 +42,12 @@ interface ModmailAction {
     archive?: boolean,
     unban?: boolean,
     approve_user?: boolean,
+    set_flair?: {
+        override_flair?: boolean,
+        set_flair_text?: string,
+        set_flair_css_class?: string,
+        set_flair_template_id?: string,
+    },
 }
 
 /**
@@ -144,7 +156,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     for (const rule of rules) {
         // eslint-disable-next-line no-await-in-loop
-        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, participant, isMod, isAdmin);
+        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
         processedRules.push(ruleResult);
 
         if (ruleResult.ruleMatched) {
@@ -178,6 +190,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
                 if (rule.unban) {
                     debugOutput += "* Unban user\n";
                 }
+                if (rule.set_flair) {
+                    debugOutput += "* Set Flair\n";
+                }
                 debugOutput += "\n";
             }
         }
@@ -206,6 +221,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         mute: matchedRule.mute,
         unban: matchedRule.unban,
         approve_user: matchedRule.approve_user,
+        set_flair: matchedRule.set_flair,
     };
 
     if (matchedRule.reply) {
@@ -282,7 +298,7 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         console.log("Conversation archived");
     }
 
-    if (action.unban || action.approve_user) {
+    if (action.unban || action.approve_user || action.set_flair) {
         const subreddit = await context.reddit.getCurrentSubreddit();
 
         if (action.unban) {
@@ -293,6 +309,30 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         if (action.approve_user) {
             await context.reddit.approveUser(action.username, subreddit.name);
             console.log("User has been added as approved user");
+        }
+
+        if (action.set_flair) {
+            let canSetFlair = true;
+            if (!action.set_flair.override_flair) {
+                const user = await context.reddit.getUserByUsername(action.username);
+                const currentFlair = await user.getUserFlairBySubreddit(subreddit.name);
+                if (currentFlair) {
+                    canSetFlair = false;
+                }
+            }
+
+            if (canSetFlair) {
+                await context.reddit.setUserFlair({
+                    subredditName: subreddit.name,
+                    username: action.username,
+                    text: action.set_flair.set_flair_text,
+                    cssClass: action.set_flair.set_flair_css_class,
+                    flairTemplateId: action.set_flair.set_flair_template_id,
+                });
+                console.log("New flair set");
+            } else {
+                console.log("User already has a flair, cannot set.");
+            }
         }
     }
 }
@@ -324,7 +364,7 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-export async function checkRule (context: TriggerContext | undefined, subredditName: string, rule: ResponseRule, subject: string, body: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
+export async function checkRule (context: TriggerContext | undefined, subredditName: string, rule: ResponseRule, subject: string, body: string, username: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -333,6 +373,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         archive: rule.archive,
         unban: rule.unban,
         approve_user: rule.approve_user,
+        set_flair: rule.author?.set_flair,
         verboseLogs: [],
     };
 
@@ -368,6 +409,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
+    if (rule.subject_shorter_than) {
+        if (subject.length < rule.subject_shorter_than) {
+            logDebug(rule.verbose_logs, "Subject is shorter than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Subject is too long, so rule fails", result.verboseLogs);
+            return result;
+        }
+    }
+
+    if (rule.subject_longer_than) {
+        if (subject.length > rule.subject_longer_than) {
+            logDebug(rule.verbose_logs, "Subject is longer than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Subject is too short, so rule fails", result.verboseLogs);
+            return result;
+        }
+    }
+
     if (rule.body) {
         if (!checkTextMatch(body, rule.body, rule.body_options)) {
             logDebug(rule.verbose_logs, "Body does not match.", result.verboseLogs);
@@ -383,6 +442,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             return result;
         } else {
             logDebug(rule.verbose_logs, "Negated body did not match, so check passes.", result.verboseLogs);
+        }
+    }
+
+    if (rule.body_shorter_than) {
+        if (body.length < rule.body_shorter_than) {
+            logDebug(rule.verbose_logs, "Body is shorter than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Body is too long, so rule fails", result.verboseLogs);
+            return result;
+        }
+    }
+
+    if (rule.body_longer_than) {
+        if (body.length > rule.body_longer_than) {
+            logDebug(rule.verbose_logs, "Body is longer than specified length, so check passes.", result.verboseLogs);
+        } else {
+            logDebug(rule.verbose_logs, "Body is too short, so rule fails", result.verboseLogs);
+            return result;
         }
     }
 
@@ -407,24 +484,6 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     if (rule.author) {
         if (participant) {
             // Most checks need the user to be not shadowbanned.
-            if (rule.author.name) {
-                if (!checkTextMatch(participant.username, rule.author.name, rule.author.name_options)) {
-                    logDebug(rule.verbose_logs, "Author name doesn't match", result.verboseLogs);
-                    return result;
-                } else {
-                    logDebug(rule.verbose_logs, "Author name matches", result.verboseLogs);
-                }
-            }
-
-            if (rule.author.notname) {
-                if (!checkTextMatch(participant.username, rule.author.notname, rule.author.notname_options)) {
-                    logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
-                    return result;
-                } else {
-                    logDebug(rule.verbose_logs, "Negated author name does not match, so check passes", result.verboseLogs);
-                }
-            }
-
             const thresholdChecks: boolean[] = [];
             if (rule.author.post_karma) {
                 const thresholdMatched = meetsNumericThreshold(participant.linkKarma, rule.author.post_karma);
@@ -536,6 +595,24 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
         }
 
+        if (rule.author.name) {
+            if (!checkTextMatch(username, rule.author.name, rule.author.name_options)) {
+                logDebug(rule.verbose_logs, "Author name doesn't match", result.verboseLogs);
+                return result;
+            } else {
+                logDebug(rule.verbose_logs, "Author name matches", result.verboseLogs);
+            }
+        }
+
+        if (rule.author.notname) {
+            if (!checkTextMatch(username, rule.author.notname, rule.author.notname_options)) {
+                logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
+                return result;
+            } else {
+                logDebug(rule.verbose_logs, "Negated author name does not match, so check passes", result.verboseLogs);
+            }
+        }
+
         if (rule.author.is_shadowbanned !== undefined) {
             if (rule.author.is_shadowbanned !== (participant === undefined)) {
                 logDebug(rule.verbose_logs, "Shadowban check failed, skipping rule.", result.verboseLogs);
@@ -543,6 +620,12 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             } else {
                 logDebug(rule.verbose_logs, "Shadowban check passed.", result.verboseLogs);
             }
+        }
+
+        if (!participant && (rule.author.account_age || rule.author.combined_karma || rule.author.comment_karma || rule.author.flair_css_class || rule.author.flair_text || rule.author.is_banned !== undefined || rule.author.is_contributor !== undefined)) {
+            // Participant is undefined, and uncheckable author checks exist.
+            logDebug(rule.verbose_logs, "Author is shadowbanned and uncheckable author checks exist.", result.verboseLogs);
+            return result;
         }
     }
 

@@ -329,3 +329,21 @@ mute: 28
     expect(rules[0].author?.notname).toEqual(["PossibleCrit"]);
     expect(rules[0].author?.notname_options?.negate).toBeTruthy();
 });
+
+test("Set Flair", () => {
+    const input = `---
+author:
+    name: "spez"
+    set_flair:
+        override_flair: true
+        set_flair_text: "flairy flair"
+        set_flair_css_class: "user"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.set_flair).toBeDefined();
+    expect(rules[0].author?.set_flair?.set_flair_text).toEqual("flairy flair");
+    expect(rules[0].author?.set_flair?.set_flair_css_class).toEqual("user");
+});

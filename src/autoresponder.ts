@@ -216,7 +216,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const action: ModmailAction = {
         conversationId: conversationResponse.conversation.id,
-        username: event.messageAuthor.name,
+        username: conversationResponse.conversation.participant.name,
         archive: matchedRule.archive,
         mute: matchedRule.mute,
         unban: matchedRule.unban,

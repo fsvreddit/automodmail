@@ -2,7 +2,7 @@
 import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
-import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative} from "date-fns";
+import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays} from "date-fns";
 import {ThingPrefix, isBanned, isContributor, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
@@ -66,6 +66,16 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         console.log("Modmail event triggered by this app. Quitting.");
         return;
     }
+
+    // Mitigate against duplicate triggers
+    const redisKey = `alreadyprocessed~${event.messageId}`;
+    const alreadyProcessed = await context.redis.get(redisKey);
+    if (alreadyProcessed) {
+        console.log(`Already processed this message. Quitting. ${event.messageId}`);
+        return;
+    }
+
+    await context.redis.set(redisKey, new Date().getTime().toString(), {expiration: addDays(new Date(), 7)});
 
     const conversationResponse = await context.reddit.modMail.getConversation({
         conversationId: event.conversationId,

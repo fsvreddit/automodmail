@@ -16,6 +16,7 @@ Devvit.addSchedulerJob({
 
 Devvit.configure({
     redditAPI: true,
+    redis: true,
 });
 
 export default Devvit;

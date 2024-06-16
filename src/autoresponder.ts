@@ -113,11 +113,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (isFirstMessage && currentMessage.author.name !== participantName) {
-        console.log("Outgoing modmail, first message. Quitting.");
-        return;
-    }
-
     const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author && message.author.name === participantName)?.id;
 
     console.log({

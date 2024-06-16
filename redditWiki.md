@@ -26,7 +26,7 @@ If you need a string to start with a > character, you must enclose it in quotes 
 
 ## Modmail properties
 
-`is_reply` checks to see if the message is a reply or the original message, taking a value of true or false. If this is not entered, the rule will only act on the initial message, and then only if the message is an inbound one. Rules are never checked on the first message if it is a message from a moderator to a user. `is_first_user_reply` works similarly, but will only handle the first reply from the user that the modmail thread is about. This can be useful to allow autoresponses once but not indefinitely.
+`is_reply` checks to see if the message is a reply or the original message, taking a value of true or false. If this is not entered, the rule will only act on the initial message. `is_first_user_reply` works similarly, but will only handle the first reply from the user that the modmail thread is about. This can be useful to allow autoresponses once but not indefinitely.
 
 `subject` matches the subject of the incoming modmail, and performs a match on the term or terms included. Likewise `body` matches the body of the incoming modmail.
 
@@ -355,6 +355,17 @@ You could use sets of rules that work together to automate approving users into 
         is_banned: false
     reply: "Thank you for accepting our rules. You will now be made an approved contributor to {{subreddit}}.
     approve_user: true
+    archive: true
+    ---
+
+### Auto-archiving "You are an approved user" notifications
+
+    ---
+    subject (full-exact): "you are an approved user"
+    body (starts-with): "you have been added as an approved user to"
+    is_reply: false
+    author:
+        is_moderator: true
     archive: true
     ---
 

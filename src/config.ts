@@ -385,7 +385,7 @@ export function validateRule (rule: ResponseRule): string {
         return "No actions specified. Rule must either reply or mute (or both)";
     }
 
-    if (rule.body && rule.body_options && rule.body_options.search_method === "regex") {
+    if (rule.body && rule.body_options?.search_method === "regex") {
         try {
             rule.body.map(x => new RegExp(x));
         } catch {
@@ -393,7 +393,7 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.notbody && rule.notbody_options && rule.notbody_options.search_method === "regex") {
+    if (rule.notbody && rule.notbody_options?.search_method === "regex") {
         try {
             rule.notbody.map(x => new RegExp(x));
         } catch {
@@ -401,7 +401,7 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.subject && rule.subject_options && rule.subject_options.search_method === "regex") {
+    if (rule.subject && rule.subject_options?.search_method === "regex") {
         try {
             rule.subject.map(x => new RegExp(x));
         } catch {
@@ -409,7 +409,7 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.notsubject && rule.notsubject_options && rule.notsubject_options.search_method === "regex") {
+    if (rule.notsubject && rule.notsubject_options?.search_method === "regex") {
         try {
             rule.notsubject.map(x => new RegExp(x));
         } catch {
@@ -418,7 +418,7 @@ export function validateRule (rule: ResponseRule): string {
     }
 
     if (rule.author) {
-        if (rule.author.name && rule.author.name_options && rule.author.name_options.search_method === "regex") {
+        if (rule.author.name && rule.author.name_options?.search_method === "regex") {
             try {
                 rule.author.name.map(x => new RegExp(x));
             } catch {
@@ -426,7 +426,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notname && rule.author.notname_options && rule.author.notname_options.search_method === "regex") {
+        if (rule.author.notname && rule.author.notname_options?.search_method === "regex") {
             try {
                 rule.author.notname.map(x => new RegExp(x));
             } catch {
@@ -434,7 +434,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.flair_text && rule.author.flair_text_options && rule.author.flair_text_options.search_method === "regex") {
+        if (rule.author.flair_text && rule.author.flair_text_options?.search_method === "regex") {
             try {
                 rule.author.flair_text.map(x => new RegExp(x));
             } catch {
@@ -442,7 +442,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notflair_text && rule.author.notflair_text_options && rule.author.notflair_text_options.search_method === "regex") {
+        if (rule.author.notflair_text && rule.author.notflair_text_options?.search_method === "regex") {
             try {
                 rule.author.notflair_text.map(x => new RegExp(x));
             } catch {
@@ -450,7 +450,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.flair_css_class && rule.author.flair_css_class_options && rule.author.flair_css_class_options.search_method === "regex") {
+        if (rule.author.flair_css_class && rule.author.flair_css_class_options?.search_method === "regex") {
             try {
                 rule.author.flair_css_class.map(x => new RegExp(x));
             } catch {
@@ -458,7 +458,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notflair_css_class && rule.author.notflair_css_class_options && rule.author.notflair_css_class_options.search_method === "regex") {
+        if (rule.author.notflair_css_class && rule.author.notflair_css_class_options?.search_method === "regex") {
             try {
                 rule.author.notflair_css_class.map(x => new RegExp(x));
             } catch {

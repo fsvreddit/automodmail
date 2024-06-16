@@ -62,7 +62,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (event.messageAuthor && event.messageAuthor.id === context.appAccountId) {
+    if (event.messageAuthor?.id === context.appAccountId) {
         console.log("Modmail event triggered by this app. Quitting.");
         return;
     }
@@ -642,10 +642,10 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             limit: 200,
         }).all();
 
-        modLog = modLog.filter(x => x.target && x.target.author === participant.username);
+        modLog = modLog.filter(x => x.target?.author === participant.username);
 
         if (rule.mod_action.action_within) {
-            modLog = modLog.filter(x => rule.mod_action && rule.mod_action.action_within && meetsDateThreshold(x.createdAt, rule.mod_action.action_within, "<"));
+            modLog = modLog.filter(x => rule.mod_action?.action_within && meetsDateThreshold(x.createdAt, rule.mod_action.action_within, "<"));
             console.log(`After removing old entries: ${modLog.length} log entries still found`);
         }
 
@@ -698,7 +698,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
 export function meetsNumericThreshold (input: number, threshold: string): boolean {
     const regex = new RegExp(numericComparatorPattern);
     const matches = threshold.match(regex);
-    if (!matches || matches.length !== 3) {
+    if (matches?.length !== 3) {
         return false;
     }
 
@@ -732,7 +732,7 @@ export function meetsNumericThreshold (input: number, threshold: string): boolea
 export function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: string): boolean {
     const regex = new RegExp(dateComparatorPattern);
     const matches = threshold.match(regex);
-    if (!matches || matches.length !== 4) {
+    if (matches?.length !== 4) {
         return false;
     }
 

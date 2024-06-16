@@ -314,7 +314,7 @@ export function parseRules (rules?: string): ResponseRule[] {
         }
 
         const matches = line.match(searchTypeRegex);
-        if (matches && matches.length === 4) {
+        if (matches?.length === 4) {
             const [, searchType, searchOptions, matchData] = matches;
             const searchOption: SearchOption = {};
             searchOption.negate = searchType.trim().startsWith("not");
@@ -475,11 +475,11 @@ export function validateRule (rule: ResponseRule): string {
         return "You can only have an unban action if there is an author check for is_banned = true";
     }
 
-    if (rule.moderators_exempt && rule.author && rule.author.is_moderator) {
+    if (rule.moderators_exempt && rule.author?.is_moderator) {
         return "You cannot have a rule where moderators are exempt but you're also checking that the author is a mod";
     }
 
-    if (rule.author && rule.author.is_participant && rule.author.is_moderator) {
+    if (rule.author?.is_participant && rule.author?.is_moderator) {
         return "You cannot specify is_participant and is_moderator to be true at the same time";
     }
 

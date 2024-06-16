@@ -381,7 +381,7 @@ export function parseRules (rules?: string): ResponseRule[] {
  * @returns An empty string if the rule is valid, or a string containing the issue with the rule if not.
  */
 export function validateRule (rule: ResponseRule): string {
-    if (!rule.reply && !rule.mute) {
+    if (!rule.reply && !rule.mute && !rule.author?.is_moderator) {
         return "No actions specified. Rule must either reply or mute (or both)";
     }
 

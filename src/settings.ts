@@ -36,7 +36,7 @@ export const appSettings: SettingsFormField[] = [
                 await context.scheduler.runJob({
                     name: "saveRulesToWikiPage",
                     runAt: addSeconds(new Date(), 5),
-                    data: {userId: context.userId}
+                    data: {userId: context.userId},
                 });
             } catch (error) {
                 if (error instanceof Error) {

@@ -67,6 +67,7 @@ export interface ResponseRule {
         mod_action_type?: ModActionType,
         action_within?: string,
         action_reason?: string[],
+        action_reason_options?: SearchOption,
         still_in_queue?: boolean,
     },
     priority?: number,
@@ -264,6 +265,16 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"]},
                     action_within: {type: "string", nullable: true, pattern: dateComparatorPattern},
                     action_reason: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    action_reason_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
                     still_in_queue: {type: "boolean", nullable: true},
                 },
                 nullable: true,
@@ -293,7 +304,7 @@ export function parseRules (rules?: string): ResponseRule[] {
 
     // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
     const preprocessedRules: string[] = [];
-    const searchTypeRegex = /^(subject|body|notsubject|notbody|subjectandbody|notsubjectandbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class))?(?: \((.+)\))?:(.+)$/;
+    const searchTypeRegex = /^(subject|body|notsubject|notbody|subjectandbody|notsubjectandbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class|action_reason))?(?: \((.+)\))?:(.+)$/;
     for (let line of rules.split("\n")) {
         if (line.startsWith("subject_regex")) {
             line = line.replace("subject_regex", "subject (regex)");

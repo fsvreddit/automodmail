@@ -6,6 +6,13 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 ## Version History
 
+### v1.7
+
+- Supports modifiers (includes, regex, etc.) on action_reason
+- New function to back up rules to a wiki page to allow history to be maintained
+- Allow archive: true to be the only option on outgoing rules by moderators
+- Allow rules to be run on first outgoing message
+
 ### v1.6
 
 - Fixed a bug that meant rules with author checks would incorrectly match on shadowbanned users

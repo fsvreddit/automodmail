@@ -347,3 +347,22 @@ mute: 28
     expect(rules[0].author?.set_flair?.set_flair_text).toEqual("flairy flair");
     expect(rules[0].author?.set_flair?.set_flair_css_class).toEqual("user");
 });
+
+test("Action reason with options subject", () => {
+    const input = `---
+subject: Removed
+mod_action:
+    moderator_name: "AutoModerator"
+    mod_action_type: "removecomment"
+    action_reason (regex): "^Match Thread -"
+    action_within: "15 minutes"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+    expect(rules[0].mod_action).toBeDefined();
+    expect(rules[0].mod_action?.action_reason).toBeDefined();
+    expect(rules[0].mod_action?.action_reason).toEqual(["^Match Thread -"]);
+    expect(rules[0].mod_action?.action_reason_options).toBeDefined();
+    expect(rules[0].mod_action?.action_reason_options?.search_method).toEqual("regex");
+});

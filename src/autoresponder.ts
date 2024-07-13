@@ -649,8 +649,11 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             console.log(`After removing old entries: ${modLog.length} log entries still found`);
         }
 
+        console.log(modLog);
+
         if (rule.mod_action.action_reason) {
-            modLog = modLog.filter(logEntry => rule.mod_action?.action_reason?.some(reason => `${logEntry.details ?? ""} ${logEntry.description ?? ""}`.toLowerCase().includes(reason.toLowerCase())));
+            modLog = modLog.filter(logEntry => logEntry.details && checkTextMatch(logEntry.details, rule.mod_action!.action_reason!, rule.mod_action?.action_reason_options)
+                || logEntry.description && checkTextMatch(logEntry.description, rule.mod_action!.action_reason!, rule.mod_action?.action_reason_options));
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 

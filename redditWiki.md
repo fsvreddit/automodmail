@@ -145,9 +145,11 @@ Sub properties are:
 
 `action_within`: The timeframe that the mod action was taken in relative to the date/time of the modmail. E.g. `action_within: 30 minutes`. Like account age, supported time units are `minute`, `hour`, `day`, `week`, `month` and `year`, with both singular and plural forms supported.
 
-`action_reason`: Text to match against the action_reason, if one is set (e.g. on `removecomment` or `removepost` mod actions). This is not case sensitive, checks substrings and both single and arrays are supported e.g.
+`action_reason`: Text to match against the action_reason, if one is set (e.g. on `removecomment` or `removepost` mod actions) e.g.
 
     action_reason: ["ban evasion", "crowd control"]
+
+    action_reason (regex, case_sensitive): "^Match Day"
 
     action_reason: "low karma"
 

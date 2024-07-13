@@ -650,8 +650,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
 
         if (rule.mod_action.action_reason) {
-            modLog = modLog.filter(logEntry => logEntry.details && checkTextMatch(logEntry.details, rule.mod_action!.action_reason!, rule.mod_action?.action_reason_options)
-                || logEntry.description && checkTextMatch(logEntry.description, rule.mod_action!.action_reason!, rule.mod_action?.action_reason_options));
+            modLog = modLog.filter(logEntry => logEntry.details && checkTextMatch(logEntry.details, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options)
+                || logEntry.description && checkTextMatch(logEntry.description, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options));
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 
@@ -784,9 +784,13 @@ export function meetsDateThreshold (input: Date, threshold: string, defaultOpera
     }
 }
 
-export function checkTextMatch (input: string, matchText: string[], options?: SearchOption): boolean {
+export function checkTextMatch (input: string, matchText: string[] | undefined, options?: SearchOption): boolean {
     if (!options) {
         options = {search_method: "includes", negate: false, case_sensitive: false};
+    }
+
+    if (!matchText || matchText.length === 0) {
+        return options.negate ?? false;
     }
 
     if (options.search_method !== "regex" && !options.case_sensitive) {

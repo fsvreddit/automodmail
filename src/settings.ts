@@ -1,9 +1,11 @@
-import {SettingsFormField, SettingsFormFieldValidatorEvent} from "@devvit/public-api";
+import {ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, WikiPage, WikiPagePermissionLevel} from "@devvit/public-api";
 import {languageList} from "./i18n.js";
 import {parseRules} from "./config.js";
+import {addSeconds} from "date-fns";
 
 export enum AppSetting {
     Rules = "rules",
+    BackupToWikiPage = "backupToWikiPage",
     Signoff = "signoff",
     IncludeSignoffForMods = "includeSignoffForMods",
     SecondsDelayBeforeSend = "secondsDelayBeforeSend",
@@ -27,9 +29,15 @@ export const appSettings: SettingsFormField[] = [
         label: "Enter YAML autoresponse rules",
         helpText: "Please see documentation here for syntax: https://www.reddit.com/r/fsvapps/wiki/auto-modmail",
         lineHeight: 10,
-        onValidate: ({value}) => {
+        onValidate: async (event, context) => {
             try {
-                parseRules(value);
+                parseRules(event.value);
+
+                await context.scheduler.runJob({
+                    name: "saveRulesToWikiPage",
+                    runAt: addSeconds(new Date(), 5),
+                    data: {userId: context.userId},
+                });
             } catch (error) {
                 if (error instanceof Error) {
                     return `Error parsing rules: ${error.message}`;
@@ -38,6 +46,13 @@ export const appSettings: SettingsFormField[] = [
                 }
             }
         },
+    },
+    {
+        type: "boolean",
+        name: AppSetting.BackupToWikiPage,
+        label: "Backup rules to wiki page",
+        helpText: "Backs up rules to the wiki page 'automodmailrules', visible to subreddit mods only",
+        defaultValue: false,
     },
     {
         type: "paragraph",
@@ -89,3 +104,52 @@ export const appSettings: SettingsFormField[] = [
     },
 ];
 
+export async function saveRulesToWikiPage (event: ScheduledJobEvent, context: TriggerContext) {
+    const settings = await context.settings.getAll();
+    const currentRules = settings[AppSetting.Rules] as string | undefined;
+    const backupToWikiPage = settings[AppSetting.BackupToWikiPage] as boolean | undefined;
+    if (!currentRules || !backupToWikiPage) {
+        return;
+    }
+
+    const wikiPageName = "automodmailrules";
+
+    const subreddit = await context.reddit.getCurrentSubreddit();
+    let wikiPage: WikiPage | undefined;
+    try {
+        wikiPage = await context.reddit.getWikiPage(subreddit.name, wikiPageName);
+    } catch {
+        //
+    }
+
+    if (wikiPage && wikiPage.content.trim() === currentRules.trim()) {
+        // Rules haven't changed.
+        return;
+    }
+
+    let reason: string | undefined;
+    const userId = event.data?.userId as string | undefined;
+    if (userId) {
+        const user = await context.reddit.getUserById(userId);
+        reason = `Rules updated by /u/${user.username}`;
+    }
+
+    const wikiUpdateOptions = {
+        content: currentRules,
+        page: wikiPageName,
+        subredditName: subreddit.name,
+        reason,
+    };
+
+    if (wikiPage) {
+        await context.reddit.updateWikiPage(wikiUpdateOptions);
+    } else {
+        await context.reddit.createWikiPage(wikiUpdateOptions);
+        await context.reddit.updateWikiPageSettings({
+            listed: true,
+            page: wikiPageName,
+            permLevel: WikiPagePermissionLevel.MODS_ONLY,
+            subredditName: subreddit.name,
+        });
+    }
+}

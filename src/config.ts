@@ -67,6 +67,7 @@ export interface ResponseRule {
         mod_action_type?: ModActionType,
         action_within?: string,
         action_reason?: string[],
+        action_reason_options?: SearchOption,
         still_in_queue?: boolean,
     },
     priority?: number,
@@ -264,6 +265,16 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"]},
                     action_within: {type: "string", nullable: true, pattern: dateComparatorPattern},
                     action_reason: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
+                    action_reason_options: {
+                        type: "object",
+                        properties: {
+                            search_method: {type: "string", nullable: true, enum: matchSearchMethod},
+                            case_sensitive: {type: "boolean", nullable: true},
+                            negate: {type: "boolean", nullable: true},
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
                     still_in_queue: {type: "boolean", nullable: true},
                 },
                 nullable: true,
@@ -293,7 +304,7 @@ export function parseRules (rules?: string): ResponseRule[] {
 
     // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
     const preprocessedRules: string[] = [];
-    const searchTypeRegex = /^(subject|body|notsubject|notbody|subjectandbody|notsubjectandbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class))?(?: \((.+)\))?:(.+)$/;
+    const searchTypeRegex = /^(subject|body|notsubject|notbody|subjectandbody|notsubjectandbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class|action_reason))?(?: \((.+)\))?:(.+)$/;
     for (let line of rules.split("\n")) {
         if (line.startsWith("subject_regex")) {
             line = line.replace("subject_regex", "subject (regex)");
@@ -314,7 +325,7 @@ export function parseRules (rules?: string): ResponseRule[] {
         }
 
         const matches = line.match(searchTypeRegex);
-        if (matches && matches.length === 4) {
+        if (matches?.length === 4) {
             const [, searchType, searchOptions, matchData] = matches;
             const searchOption: SearchOption = {};
             searchOption.negate = searchType.trim().startsWith("not");
@@ -381,11 +392,11 @@ export function parseRules (rules?: string): ResponseRule[] {
  * @returns An empty string if the rule is valid, or a string containing the issue with the rule if not.
  */
 export function validateRule (rule: ResponseRule): string {
-    if (!rule.reply && !rule.mute) {
+    if (!rule.reply && !rule.mute && !rule.author?.is_moderator) {
         return "No actions specified. Rule must either reply or mute (or both)";
     }
 
-    if (rule.body && rule.body_options && rule.body_options.search_method === "regex") {
+    if (rule.body && rule.body_options?.search_method === "regex") {
         try {
             rule.body.map(x => new RegExp(x));
         } catch {
@@ -393,7 +404,7 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.notbody && rule.notbody_options && rule.notbody_options.search_method === "regex") {
+    if (rule.notbody && rule.notbody_options?.search_method === "regex") {
         try {
             rule.notbody.map(x => new RegExp(x));
         } catch {
@@ -401,7 +412,7 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.subject && rule.subject_options && rule.subject_options.search_method === "regex") {
+    if (rule.subject && rule.subject_options?.search_method === "regex") {
         try {
             rule.subject.map(x => new RegExp(x));
         } catch {
@@ -409,7 +420,7 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.notsubject && rule.notsubject_options && rule.notsubject_options.search_method === "regex") {
+    if (rule.notsubject && rule.notsubject_options?.search_method === "regex") {
         try {
             rule.notsubject.map(x => new RegExp(x));
         } catch {
@@ -418,7 +429,7 @@ export function validateRule (rule: ResponseRule): string {
     }
 
     if (rule.author) {
-        if (rule.author.name && rule.author.name_options && rule.author.name_options.search_method === "regex") {
+        if (rule.author.name && rule.author.name_options?.search_method === "regex") {
             try {
                 rule.author.name.map(x => new RegExp(x));
             } catch {
@@ -426,7 +437,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notname && rule.author.notname_options && rule.author.notname_options.search_method === "regex") {
+        if (rule.author.notname && rule.author.notname_options?.search_method === "regex") {
             try {
                 rule.author.notname.map(x => new RegExp(x));
             } catch {
@@ -434,7 +445,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.flair_text && rule.author.flair_text_options && rule.author.flair_text_options.search_method === "regex") {
+        if (rule.author.flair_text && rule.author.flair_text_options?.search_method === "regex") {
             try {
                 rule.author.flair_text.map(x => new RegExp(x));
             } catch {
@@ -442,7 +453,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notflair_text && rule.author.notflair_text_options && rule.author.notflair_text_options.search_method === "regex") {
+        if (rule.author.notflair_text && rule.author.notflair_text_options?.search_method === "regex") {
             try {
                 rule.author.notflair_text.map(x => new RegExp(x));
             } catch {
@@ -450,7 +461,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.flair_css_class && rule.author.flair_css_class_options && rule.author.flair_css_class_options.search_method === "regex") {
+        if (rule.author.flair_css_class && rule.author.flair_css_class_options?.search_method === "regex") {
             try {
                 rule.author.flair_css_class.map(x => new RegExp(x));
             } catch {
@@ -458,7 +469,7 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notflair_css_class && rule.author.notflair_css_class_options && rule.author.notflair_css_class_options.search_method === "regex") {
+        if (rule.author.notflair_css_class && rule.author.notflair_css_class_options?.search_method === "regex") {
             try {
                 rule.author.notflair_css_class.map(x => new RegExp(x));
             } catch {
@@ -475,11 +486,11 @@ export function validateRule (rule: ResponseRule): string {
         return "You can only have an unban action if there is an author check for is_banned = true";
     }
 
-    if (rule.moderators_exempt && rule.author && rule.author.is_moderator) {
+    if (rule.moderators_exempt && rule.author?.is_moderator) {
         return "You cannot have a rule where moderators are exempt but you're also checking that the author is a mod";
     }
 
-    if (rule.author && rule.author.is_participant && rule.author.is_moderator) {
+    if (rule.author?.is_participant && rule.author?.is_moderator) {
         return "You cannot specify is_participant and is_moderator to be true at the same time";
     }
 

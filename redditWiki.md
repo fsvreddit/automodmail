@@ -201,10 +201,10 @@ You can also set a flair by adding the `set_flair` property under the `author` a
     author:
         set_flair:
             override_flair: true
-            flair_text: "Authorised"
-            flair_css_class: "authorised"
+            set_flair_text: "Authorised"
+            set_flair_css_class: "authorised"
 
-Properties supported for set_flair also includes `flair_template_id`. If override_flair is false or missing, users with existing flair won't have a new flair set.
+Properties supported for set_flair also includes `set_flair_template_id`. If override_flair is false or missing, users with existing flair won't have a new flair set.
 
 ### Placeholders on replies
 

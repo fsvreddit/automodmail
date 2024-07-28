@@ -6,6 +6,10 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 ## Version History
 
+### v1.8
+
+- Supports {{match}} placeholders on replies and when setting user flair
+
 ### v1.7
 
 - Supports modifiers (includes, regex, etc.) on action_reason

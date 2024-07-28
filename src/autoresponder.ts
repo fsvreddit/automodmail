@@ -31,6 +31,8 @@ interface RuleMatchContext {
     modActionDate?: Date,
     modActionTargetPermalink?: string,
     modActionTargetKind?: "post" | "comment",
+    subjectMatch?: string[],
+    bodyMatch?: string[]
     verboseLogs: string[],
 }
 
@@ -229,6 +231,10 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         set_flair: matchedRule.set_flair,
     };
 
+    if (action.set_flair?.set_flair_text) {
+        action.set_flair.set_flair_text === applyMatchPlaceholders(action.set_flair.set_flair_text, matchedRule);
+    }
+
     if (matchedRule.reply) {
         let replyMessage = matchedRule.reply;
 
@@ -262,6 +268,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
             replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
         }
+
+        replyMessage = applyMatchPlaceholders(replyMessage, matchedRule);
 
         action.reply = replyMessage;
     }
@@ -352,7 +360,10 @@ export async function actOnMessageAfterDelay (event: ScheduledJobEvent, context:
     await actOnRule(action, context);
 }
 
-function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verboseLogOutput: string[]) {
+function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verboseLogOutput: string[], match?: string[]) {
+    if (match) {
+        reason += ` ${JSON.stringify(match)}`;
+    }
     console.log(reason);
     if (verboseLogsEnabled) {
         verboseLogOutput.push(reason);
@@ -397,11 +408,12 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.subject) {
-        if (!checkTextMatch(subject, rule.subject, rule.subject_options)) {
+        result.subjectMatch = checkTextMatch(subject, rule.subject, rule.subject_options);
+        if (!result.subjectMatch) {
             logDebug(rule.verbose_logs, "Subject does not match.", result.verboseLogs);
             return result;
         } else {
-            logDebug(rule.verbose_logs, "Subject matched successfully.", result.verboseLogs);
+            logDebug(rule.verbose_logs, "Subject matched successfully.", result.verboseLogs, result.subjectMatch);
         }
     }
 
@@ -433,11 +445,12 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.body) {
-        if (!checkTextMatch(body, rule.body, rule.body_options)) {
+        result.bodyMatch = checkTextMatch(body, rule.body, rule.body_options);
+        if (!result.bodyMatch) {
             logDebug(rule.verbose_logs, "Body does not match.", result.verboseLogs);
             return result;
         } else {
-            logDebug(rule.verbose_logs, "Body matched successfully.", result.verboseLogs);
+            logDebug(rule.verbose_logs, "Body matched successfully.", result.verboseLogs, result.bodyMatch);
         }
     }
 
@@ -469,11 +482,13 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.subjectandbody) {
-        if (!checkTextMatch(subject, rule.subjectandbody, rule.subjectandbody_options) && !checkTextMatch(body, rule.subjectandbody, rule.subjectandbody_options)) {
+        result.subjectMatch = checkTextMatch(subject, rule.subjectandbody, rule.subjectandbody_options);
+        result.bodyMatch = checkTextMatch(body, rule.subjectandbody, rule.subjectandbody_options);
+        if (!result.subjectMatch && !result.bodyMatch) {
             logDebug(rule.verbose_logs, "subject+body does not match.", result.verboseLogs);
             return result;
         } else {
-            logDebug(rule.verbose_logs, "subject+body matched successfully.", result.verboseLogs);
+            logDebug(rule.verbose_logs, "subject+body matched successfully.", result.verboseLogs, result.subjectMatch ?? result.bodyMatch);
         }
     }
 
@@ -784,13 +799,21 @@ export function meetsDateThreshold (input: Date, threshold: string, defaultOpera
     }
 }
 
-export function checkTextMatch (input: string, matchText: string[] | undefined, options?: SearchOption): boolean {
+function normaliseCase (input: string, caseSensitive?: boolean): string {
+    if (caseSensitive) {
+        return input;
+    } else {
+        return input.toLowerCase();
+    }
+}
+
+export function checkTextMatch (input: string, matchText: string[] | undefined, options?: SearchOption): string[] | undefined {
     if (!options) {
         options = {search_method: "includes", negate: false, case_sensitive: false};
     }
 
     if (!matchText || matchText.length === 0) {
-        return options.negate ?? false;
+        return options.negate ? [""] : undefined;
     }
 
     if (options.search_method !== "regex" && !options.case_sensitive) {
@@ -798,38 +821,105 @@ export function checkTextMatch (input: string, matchText: string[] | undefined, 
         matchText = matchText.map(item => item.toLowerCase());
     }
 
-    let result: boolean;
+    let result: string[] | undefined = undefined;
 
-    switch (options.search_method) {
-        case "includes":
-            result = matchText.some(x => input.includes(x));
-            break;
-        case "includes-word":
-            result = matchText.some(x => new RegExp(`\\b${RegexEscape(x)}\\b`).test(input));
-            break;
-        case "starts-with":
-            result = matchText.some(x => input.startsWith(x));
-            break;
-        case "ends-with":
-            result = matchText.some(x => input.endsWith(x));
-            break;
-        case "full-exact":
-            result = matchText.some(x => input === x);
-            break;
-        case "regex":
-            if (options.case_sensitive) {
-                result = matchText.some(x => new RegExp(x).test(input));
-            } else {
-                result = matchText.some(x => new RegExp(x, "i").test(input));
+    if (options.search_method === "regex") {
+        const regexes = matchText.map(x => new RegExp(x, options?.case_sensitive ? undefined : "i"));
+        for (const regex of regexes) {
+            const matches = input.match(regex);
+            if (matches) {
+                result = matches;
+                break;
             }
-            break;
-        default:
-            throw new Error(`Unexpected search method ${options.search_method ?? "undefined"}`);
+        }
+    } else {
+        let textResult: string | undefined;
+        switch (options.search_method) {
+            case "includes":
+                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive).includes(normaliseCase(x, options?.case_sensitive)));
+                break;
+            case "includes-word":
+                textResult = matchText.find(x => new RegExp(`\\b${RegexEscape(normaliseCase(x, options?.case_sensitive))}\\b`).test(normaliseCase(input, options?.case_sensitive)));
+                break;
+            case "starts-with":
+                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive).startsWith(normaliseCase(x, options?.case_sensitive)));
+                break;
+            case "ends-with":
+                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive).endsWith(normaliseCase(x, options?.case_sensitive)));
+                break;
+            case "full-exact":
+                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive) === normaliseCase(x, options?.case_sensitive));
+                break;
+            default:
+                throw new Error(`Unexpected search method ${options.search_method ?? "undefined"}`);
+        }
+
+        if (textResult) {
+            result = [textResult];
+        } else {
+            result = undefined;
+        }
     }
 
     if (options.negate) {
-        return !result;
-    } else {
-        return result;
+        if (result) {
+            return undefined;
+        } else {
+            return [""];
+        }
     }
+
+    return result;
+}
+
+const placeholderRegex = /{{match(?:-(subject|body))?(?:-(\d+))?}}/;
+
+function applyMatchPlaceholders (input: string, result: RuleMatchContext): string {
+    let output = input;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const matches = output.match(placeholderRegex);
+        if (!matches || matches.length !== 3) {
+            break;
+        }
+
+        const [placeholder] = matches;
+
+        output = replaceAll(output, placeholder, getMatchPlaceholderText(placeholder, result));
+    }
+
+    return output;
+}
+
+function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext): string {
+    const matches = placeholder.match(placeholderRegex);
+    if (!matches || matches.length !== 3) {
+        return "";
+    }
+
+    const matchType = matches[1];
+    let thingToMatch: string[] | undefined;
+    if (matchType === "subject") {
+        thingToMatch = result.subjectMatch;
+    } else if (matchType === "body") {
+        thingToMatch = result.bodyMatch;
+    } else {
+        thingToMatch = result.subjectMatch ?? result.bodyMatch;
+    }
+
+    if (!thingToMatch) {
+        return "";
+    }
+
+    let index = 0;
+    if (matches[2]) {
+        index = parseInt(matches[2]) - 1;
+    }
+
+    if (index >= thingToMatch.length) {
+        return "";
+    }
+
+    return thingToMatch[index];
 }

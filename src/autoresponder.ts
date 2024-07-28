@@ -77,7 +77,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    await context.redis.set(redisKey, new Date().getTime().toString(), {expiration: addDays(new Date(), 7)});
+    await context.redis.set(redisKey, new Date().getTime().toString(), {expiration: addDays(new Date(), 1)});
 
     const conversationResponse = await context.reddit.modMail.getConversation({
         conversationId: event.conversationId,

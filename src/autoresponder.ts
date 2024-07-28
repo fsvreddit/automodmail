@@ -329,7 +329,7 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
             if (!action.set_flair.override_flair) {
                 const user = await context.reddit.getUserByUsername(action.username);
                 const currentFlair = await user.getUserFlairBySubreddit(subreddit.name);
-                if (currentFlair) {
+                if (currentFlair?.flairText) {
                     canSetFlair = false;
                 }
             }

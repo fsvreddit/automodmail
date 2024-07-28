@@ -228,7 +228,9 @@ Matching placeholders are also supported and work exactly like Automod's.
 
 * `{{match}}` will be substituted with the first found match from either the subject or body. `{{match-1}}` is equivalent.
 * `{{match-subject}}`, `{{match-body}}`, `{{match-subject-1}}`, `{{match-body-1}}` will be substituted with the first found match from the respective part of the modmail message.
-* `{{match-2}}`, `{{match-subject-2}}`, `{{match-body-2}}` for any number higher than 1 will return the capturing group for regex searches. E.g. `{{match-2}}` returns the first capturing group, `{{match-2}}` the second and so on.
+* `{{match-2}}`, `{{match-subject-2}}`, `{{match-body-2}}` for any number higher than 1 will return the capturing group for regex searches. E.g. `{{match-2}}` returns the first capturing group from either subject or body, `{{match-body-3}}` the second from the body, and so on.
+
+Negated searches (e.g. ~subject) will not result in matching placeholder output.
 
 ## Debug options
 

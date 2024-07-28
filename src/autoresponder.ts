@@ -816,11 +816,6 @@ export function checkTextMatch (input: string, matchText: string[] | undefined, 
         return options.negate ? [""] : undefined;
     }
 
-    if (options.search_method !== "regex" && !options.case_sensitive) {
-        input = input.toLowerCase();
-        matchText = matchText.map(item => item.toLowerCase());
-    }
-
     let result: string[] | undefined = undefined;
 
     if (options.search_method === "regex") {

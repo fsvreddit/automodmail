@@ -224,6 +224,14 @@ The following placeholders are all supported:
 
 The four mod_action placeholders will only work if a mod_action check is present in the rule. 
 
+Matching placeholders are also supported and work exactly like Automod's.
+
+* `{{match}}` will be substituted with the first found match from either the subject or body. `{{match-1}}` is equivalent.
+* `{{match-subject}}`, `{{match-body}}`, `{{match-subject-1}}`, `{{match-body-1}}` will be substituted with the first found match from the respective part of the modmail message.
+* `{{match-2}}`, `{{match-subject-2}}`, `{{match-body-2}}` for any number higher than 1 will return the capturing group for regex searches. E.g. `{{match-2}}` returns the first capturing group from either subject or body, `{{match-body-3}}` the second from the body, and so on.
+
+Negated searches (e.g. ~subject) will not result in matching placeholder output.
+
 ## Debug options
 
 If you add `verbose_logs: true` to any rule, the app will reply with a private mod note with information about why each check in a rule passed or failed. This can be useful when testing rules or trying to work out why a rule isn't working. I recommend only using this for short periods, maybe even just in test subreddits, because when any rule has verbose_logs turned on the app will respond to EVERY new modmail.

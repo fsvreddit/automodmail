@@ -142,13 +142,22 @@ test("Search methods", () => {
         {matchText: "qu[ou]ck", method: "regex", expected: false},
     ];
 
-    const expected = tests.map(test => ({method: test.method, expected: test.expected, negated: false, result: test.expected}));
-    expected.push(...tests.map(test => ({method: test.method, expected: !test.expected, negated: true, result: !test.expected})));
+    for (const test of tests) {
+        let result = checkTextMatch(input, [test.matchText], {search_method: test.method, negate: false, case_sensitive: false});
 
-    const results = tests.map(test => ({method: test.method, expected: test.expected, negated: false, result: checkTextMatch(input, [test.matchText], {search_method: test.method, negate: false, case_sensitive: false})}));
-    results.push(...tests.map(test => ({method: test.method, expected: !test.expected, negated: true, result: checkTextMatch(input, [test.matchText], {search_method: test.method, negate: true, case_sensitive: false})})));
+        if (test.expected) {
+            expect(result, JSON.stringify(test)).toBeTruthy();
+        } else {
+            expect(result, JSON.stringify(test)).toBeFalsy();
+        }
 
-    expect(results).toEqual(expected);
+        result = checkTextMatch(input, [test.matchText], {search_method: test.method, negate: true, case_sensitive: false});
+        if (test.expected) {
+            expect(result, `negated ${JSON.stringify(test)}`).toBeFalsy();
+        } else {
+            expect(result, `negated ${JSON.stringify(test)}`).toBeTruthy();
+        }
+    }
 });
 
 test("Case sensitivity on Regex, Matching Case sensitive", () => {

@@ -175,6 +175,10 @@ If you specify `moderators_exempt: true`, this will behave as if `moderators_exe
 
 `admins_exempt: false` has the same effect for admins.
 
+## Subreddit checks
+
+This app supports the `sub_visibility` check, with possible values "public", "private" and "restricted". You can use this to automate responses or approval processes on private or restricted subs, or to reply and archive when a subreddit is closed without having to comment out the rule every time a sub is closed or reopened.
+
 ## Actions to take
 
 If all checks on a rule pass, there are a number of actions that can be taken: `reply`, `mute` and `archive`.
@@ -320,6 +324,7 @@ Occasionally, subreddits will close temporarily such as in the wake of a major i
     ---
     author:
         is_contributor: false # Cannot be a join request if user's already approved
+    sub_visibility: "private"
     reply: |
         Hi {{author}},
 

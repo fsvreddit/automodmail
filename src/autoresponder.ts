@@ -699,6 +699,16 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
+    if (rule.sub_visibility && context) {
+        const subreddit = await context.reddit.getCurrentSubreddit();
+        if (rule.sub_visibility === "private" && (subreddit.type !== "private" && subreddit.type !== "employees_only") || rule.sub_visibility === "restricted" && subreddit.type !== "restricted" || rule.sub_visibility === "public" && (subreddit.type === "private" || subreddit.type === "restricted" || subreddit.type === "employees_only")) {
+            logDebug(rule.verbose_logs, `Subreddit is ${subreddit.type} not ${rule.sub_visibility}.`, result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, `Sub visibility ${rule.sub_visibility} matched the sub type property`, result.verboseLogs);
+        }
+    }
+
     // All checks passed.
     result.ruleMatched = true;
 

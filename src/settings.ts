@@ -64,7 +64,8 @@ export const appSettings: SettingsFormField[] = [
     {
         type: "boolean",
         name: AppSetting.IncludeSignoffForMods,
-        label: "Include signoff when processing actions triggered by mod messages",
+        label: "Include the text configured above when processing actions triggered by mod messages",
+        helpText: "If this is disabled, the text will only be included when this app is reacting to messages from users.",
         defaultValue: true,
     },
     {

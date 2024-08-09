@@ -3,7 +3,7 @@ import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays} from "date-fns";
-import {ThingPrefix, isBanned, isContributor, replaceAll} from "./utility.js";
+import {ThingPrefix, isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
@@ -124,7 +124,13 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         currentMessageId: currentMessage.id,
     });
 
-    const {isAdmin, isMod} = currentMessage.author;
+    const subreddit = await context.reddit.getCurrentSubreddit();
+
+    const {isAdmin} = currentMessage.author;
+    let isMod = false;
+    if (currentMessage.author.name) {
+        isMod = await isModerator(context, subreddit.name, currentMessage.author.name);
+    }
 
     const settings = await context.settings.getAll();
 
@@ -156,7 +162,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const subject = conversationResponse.conversation.subject ?? "";
     const body = currentMessage.bodyMarkdown ?? "";
-    const subreddit = await context.reddit.getCurrentSubreddit();
 
     const processedRules: RuleMatchContext[] = [];
     // Sort rules by priority descending.

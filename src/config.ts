@@ -64,12 +64,13 @@ export interface ResponseRule {
     },
     mod_action?: {
         moderator_name?: string[],
-        mod_action_type?: ModActionType,
+        mod_action_type?: ModActionType[],
         action_within?: string,
         action_reason?: string[],
         action_reason_options?: SearchOption,
         still_in_queue?: boolean,
     },
+    sub_visibility?: "public" | "private" | "restricted",
     priority?: number,
     reply?: string,
     mute?: number,
@@ -262,7 +263,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 type: "object",
                 properties: {
                     moderator_name: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
-                    mod_action_type: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"]},
+                    mod_action_type: {type: "array", items: {type: "string", nullable: true, enum: ["banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"], minLength: 1}, nullable: true},
                     action_within: {type: "string", nullable: true, pattern: dateComparatorPattern},
                     action_reason: {type: "array", items: {type: "string", minLength: 1}, nullable: true},
                     action_reason_options: {
@@ -280,6 +281,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
+            sub_visibility: {type: "string", nullable: true, enum: ["public", "private", "restricted"]},
             priority: {type: "integer", nullable: true},
             reply: {type: "string", nullable: true},
             mute: {type: "integer", nullable: true},

@@ -141,7 +141,7 @@ Sub properties are:
 
 `moderator_name`: the name (or names) of the moderator who took the action. This is case sensitive. 
 
-`mod_action_type`: the type of mod action taken. This must be one of the following: "banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"
+`mod_action_type`: the type (or types) of mod action taken. This must be one of the following: "banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"
 
 `action_within`: The timeframe that the mod action was taken in relative to the date/time of the modmail. E.g. `action_within: 30 minutes`. Like account age, supported time units are `minute`, `hour`, `day`, `week`, `month` and `year`, with both singular and plural forms supported.
 
@@ -174,6 +174,10 @@ Rules will not match if a moderator of a sub or an admin writes in to modmail un
 If you specify `moderators_exempt: true`, this will behave as if `moderators_exempt` isn't specified at all.
 
 `admins_exempt: false` has the same effect for admins.
+
+## Subreddit checks
+
+This app supports the `sub_visibility` check, with possible values "public", "private" and "restricted". You can use this to automate responses or approval processes on private or restricted subs, or to reply and archive when a subreddit is closed without having to comment out the rule every time a sub is closed or reopened.
 
 ## Actions to take
 
@@ -290,7 +294,7 @@ For example, you might have an Automod rule that removes a comment and replies t
     body: ["removed", "not showing", "deleted"]
     mod_action:
         moderator_name: "AutoModerator"
-        mod_action_type: "removecomment"
+        mod_action_type: ["removecomment", "removelink"]
         action_within: "15 minutes",
         action_reason: "social links filter"
     reply: | 
@@ -320,6 +324,7 @@ Occasionally, subreddits will close temporarily such as in the wake of a major i
     ---
     author:
         is_contributor: false # Cannot be a join request if user's already approved
+    sub_visibility: "private"
     reply: |
         Hi {{author}},
 

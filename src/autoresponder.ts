@@ -1,9 +1,9 @@
 /* eslint-disable camelcase */
-import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
+import {ModAction, ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays} from "date-fns";
-import {ThingPrefix, isBanned, isContributor, replaceAll} from "./utility.js";
+import {ThingPrefix, isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
 import {Language, languageFromString} from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
@@ -124,7 +124,13 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         currentMessageId: currentMessage.id,
     });
 
-    const {isAdmin, isMod} = currentMessage.author;
+    const subreddit = await context.reddit.getCurrentSubreddit();
+
+    const {isAdmin} = currentMessage.author;
+    let isMod = false;
+    if (currentMessage.author.name) {
+        isMod = await isModerator(context, subreddit.name, currentMessage.author.name);
+    }
 
     const settings = await context.settings.getAll();
 
@@ -156,7 +162,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const subject = conversationResponse.conversation.subject ?? "";
     const body = currentMessage.bodyMarkdown ?? "";
-    const subreddit = await context.reddit.getCurrentSubreddit();
 
     const processedRules: RuleMatchContext[] = [];
     // Sort rules by priority descending.
@@ -650,12 +655,26 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (context && rule.mod_action && participant) {
-        let modLog = await context.reddit.getModerationLog({
-            subredditName,
-            moderatorUsernames: rule.mod_action.moderator_name,
-            type: rule.mod_action.mod_action_type,
-            limit: 200,
-        }).all();
+        let modLog: ModAction[] = [];
+        if (!rule.mod_action.mod_action_type) {
+            const entries = await context.reddit.getModerationLog({
+                subredditName,
+                moderatorUsernames: rule.mod_action.moderator_name,
+                limit: 200,
+            }).all();
+            modLog.push(...entries);
+        } else {
+            for (const actionType of rule.mod_action.mod_action_type) {
+                // eslint-disable-next-line no-await-in-loop
+                const entries = await context.reddit.getModerationLog({
+                    subredditName,
+                    moderatorUsernames: rule.mod_action.moderator_name,
+                    type: actionType,
+                    limit: 200,
+                }).all();
+                modLog.push(...entries);
+            }
+        }
 
         modLog = modLog.filter(x => x.target?.author === participant.username);
 
@@ -696,6 +715,18 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             } else if (modLog[0].target.id.startsWith(ThingPrefix.Post)) {
                 result.modActionTargetKind = "post";
             }
+        }
+    }
+
+    if (rule.sub_visibility && context) {
+        const subreddit = await context.reddit.getCurrentSubreddit();
+        if (rule.sub_visibility === "private" && (subreddit.type !== "private" && subreddit.type !== "employees_only")
+                || rule.sub_visibility === "restricted" && subreddit.type !== "restricted"
+                || rule.sub_visibility === "public" && (subreddit.type === "private" || subreddit.type === "restricted" || subreddit.type === "employees_only")) {
+            logDebug(rule.verbose_logs, `Subreddit is ${subreddit.type} not ${rule.sub_visibility}.`, result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, `Sub visibility ${rule.sub_visibility} matched the sub type property`, result.verboseLogs);
         }
     }
 

@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import {ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
+import {ModAction, ScheduledJobEvent, TriggerContext, User} from "@devvit/public-api";
 import {ModMail} from "@devvit/protos";
 import {ResponseRule, SearchOption, parseRules} from "./config.js";
 import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays} from "date-fns";
@@ -655,12 +655,26 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (context && rule.mod_action && participant) {
-        let modLog = await context.reddit.getModerationLog({
-            subredditName,
-            moderatorUsernames: rule.mod_action.moderator_name,
-            type: rule.mod_action.mod_action_type,
-            limit: 200,
-        }).all();
+        let modLog: ModAction[] = [];
+        if (!rule.mod_action.mod_action_type) {
+            const entries = await context.reddit.getModerationLog({
+                subredditName,
+                moderatorUsernames: rule.mod_action.moderator_name,
+                limit: 200,
+            }).all();
+            modLog.push(...entries);
+        } else {
+            for (const actionType of rule.mod_action.mod_action_type) {
+                // eslint-disable-next-line no-await-in-loop
+                const entries = await context.reddit.getModerationLog({
+                    subredditName,
+                    moderatorUsernames: rule.mod_action.moderator_name,
+                    type: actionType,
+                    limit: 200,
+                }).all();
+                modLog.push(...entries);
+            }
+        }
 
         modLog = modLog.filter(x => x.target?.author === participant.username);
 

@@ -141,7 +141,7 @@ Sub properties are:
 
 `moderator_name`: the name (or names) of the moderator who took the action. This is case sensitive. 
 
-`mod_action_type`: the type of mod action taken. This must be one of the following: "banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"
+`mod_action_type`: the type (or types) of mod action taken. This must be one of the following: "banuser", "unbanuser", "spamlink", "removelink", "approvelink", "spamcomment", "removecomment", "approvecomment", "editflair", "lock", "unlock", "muteuser", "unmuteuser", "addremovalreason"
 
 `action_within`: The timeframe that the mod action was taken in relative to the date/time of the modmail. E.g. `action_within: 30 minutes`. Like account age, supported time units are `minute`, `hour`, `day`, `week`, `month` and `year`, with both singular and plural forms supported.
 
@@ -294,7 +294,7 @@ For example, you might have an Automod rule that removes a comment and replies t
     body: ["removed", "not showing", "deleted"]
     mod_action:
         moderator_name: "AutoModerator"
-        mod_action_type: "removecomment"
+        mod_action_type: ["removecomment", "removelink"]
         action_within: "15 minutes",
         action_reason: "social links filter"
     reply: | 

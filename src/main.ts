@@ -1,6 +1,6 @@
-import {Devvit} from "@devvit/public-api";
-import {actOnMessageAfterDelay, onModmailReceiveEvent} from "./autoresponder.js";
-import {appSettings, saveRulesToWikiPage} from "./settings.js";
+import { Devvit } from "@devvit/public-api";
+import { actOnMessageAfterDelay, onModmailReceiveEvent } from "./autoresponder.js";
+import { appSettings, saveRulesToWikiPage } from "./settings.js";
 
 Devvit.addSettings(appSettings);
 
@@ -25,4 +25,3 @@ Devvit.configure({
 });
 
 export default Devvit;
-

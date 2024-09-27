@@ -1,7 +1,7 @@
-import {ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage, WikiPagePermissionLevel} from "@devvit/public-api";
-import {languageList} from "./i18n.js";
-import {parseRules} from "./config.js";
-import {addSeconds} from "date-fns";
+import { ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage, WikiPagePermissionLevel } from "@devvit/public-api";
+import { languageList } from "./i18n.js";
+import { parseRules } from "./config.js";
+import { addSeconds } from "date-fns";
 
 export enum AppSetting {
     Rules = "rules",
@@ -14,6 +14,7 @@ export enum AppSetting {
     CommentString = "commentString",
 }
 
+// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 function selectFieldHasOptionChosen (event: SettingsFormFieldValidatorEvent<string[]>): void | string {
     if (!event.value || event.value.length !== 1) {
         return "You must choose an option";
@@ -36,7 +37,7 @@ export const appSettings: SettingsFormField[] = [
                 await context.scheduler.runJob({
                     name: "saveRulesToWikiPage",
                     runAt: addSeconds(new Date(), 5),
-                    data: {userId: context.userId},
+                    data: { userId: context.userId },
                 });
             } catch (error) {
                 if (error instanceof Error) {
@@ -85,7 +86,7 @@ export const appSettings: SettingsFormField[] = [
                 label: "Language to use for output",
                 helpText: "Affects {{mod_action_timespan_to_now}}, {{mod_action_relative_time}} and {{mod_action_target_kind}} placeholders at the present time",
                 multiSelect: false,
-                options: languageList.map(language => ({label: language.languageName, value: language.isoCode})),
+                options: languageList.map(language => ({ label: language.languageName, value: language.isoCode })),
                 defaultValue: ["en"],
                 onValidate: selectFieldHasOptionChosen,
             },

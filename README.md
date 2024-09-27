@@ -8,6 +8,11 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### v1.10
+
+- Fixed issue with {{author}} placeholder populating mod's name on mod-triggered rules
+- Add `signoff` action, allowing signoffs to be suppressed on individual rules
+
 ### v1.9.1
 
 - Add `sub_visibility` check, allowing rules to act based on whether the sub is public or private
@@ -15,8 +20,3 @@ For older releases please see the [full change log](https://github.com/fsvreddit
 - Fix behaviour of `is_moderator` for mods without modmail permission
 - Fix bug which prevents placeholders from being applied to user flairs
 - Add `private_reply` action type
-
-### v1.8
-
-- Supports {{match}} placeholders on replies and when setting user flair
-- Fixed a bug that prevents flairs from being set when override_flair is not specified.

@@ -1,4 +1,4 @@
-import {parseRules} from "./config.js";
+import { parseRules } from "./config.js";
 
 test("Simple valid", () => {
     const input = `---
@@ -6,7 +6,11 @@ subject: [Foo]
 mute: 28
 ---`;
 
-    parseRules(input);
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).not.toThrow();
 });
 
 test("Mute for noninteger duration", () => {
@@ -42,7 +46,11 @@ subject (regex): ["abc[de]f"]
 mute: 28
 ---`;
 
-    parseRules(input);
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).not.toThrow();
 });
 
 test("Invalid regex", () => {
@@ -82,7 +90,11 @@ author:
 mute: 28
 ---`;
 
-    parseRules(input);
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).not.toThrow();
 });
 
 test("Numeric comparator invalid", () => {
@@ -108,7 +120,11 @@ author:
 mute: 28
 ---`;
 
-    parseRules(input);
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).not.toThrow();
 });
 
 test("Date comparator invalid", () => {
@@ -135,7 +151,11 @@ mod_action:
 mute: 28
 ---`;
 
-    parseRules(input);
+    const t = () => {
+        parseRules(input);
+    };
+
+    expect(t).not.toThrow();
 });
 
 test("Nonexistent Mod Action", () => {
@@ -204,12 +224,12 @@ mute: 28
     const rules = parseRules(input);
     expect(rules[0].subject).toEqual(["Hello"]);
     expect(rules[0].subject_options).toBeDefined();
-    expect(rules[0].subject_options?.search_method === "regex");
-    expect(rules[0].subject_options?.negate === false);
-    expect(rules[0].subject_options?.case_sensitive === false);
+    expect(rules[0].subject_options?.search_method).toEqual("regex");
+    expect(rules[0].subject_options?.negate).toBeFalsy();
+    expect(rules[0].subject_options?.case_sensitive).toBeFalsy();
 });
 
-test("Search Options (body)", () => {
+test("Search Options (body, case_sensitive)", () => {
     const input = `---
 body (full-exact, case_sensitive): Hello
 mute: 28
@@ -219,9 +239,24 @@ mute: 28
     expect(rules[0].body).toBeDefined();
     expect(rules[0].body).toEqual(["Hello"]);
     expect(rules[0].body_options).toBeDefined();
-    expect(rules[0].body_options?.search_method === "full-exact");
-    expect(rules[0].body_options?.negate === false);
-    expect(rules[0].body_options?.case_sensitive === true);
+    expect(rules[0].body_options?.search_method).toEqual("full-exact");
+    expect(rules[0].body_options?.negate).toBeFalsy();
+    expect(rules[0].body_options?.case_sensitive).toBeTruthy();
+});
+
+test("Search Options (body, case-sensitive)", () => {
+    const input = `---
+body (full-exact, case-sensitive): Hello
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+    expect(rules[0].body).toBeDefined();
+    expect(rules[0].body).toEqual(["Hello"]);
+    expect(rules[0].body_options).toBeDefined();
+    expect(rules[0].body_options?.search_method).toEqual("full-exact");
+    expect(rules[0].body_options?.negate).toBeFalsy();
+    expect(rules[0].body_options?.case_sensitive).toBeTruthy();
 });
 
 test("Invalid search option", () => {

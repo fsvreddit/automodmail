@@ -692,7 +692,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         if (rule.mod_action.action_reason) {
             modLog = modLog.filter(logEntry => (logEntry.details && checkTextMatch(logEntry.details, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options))
             // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-            || (logEntry.description && checkTextMatch(logEntry.description, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options)));
+                || (logEntry.description && checkTextMatch(logEntry.description, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options)));
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 

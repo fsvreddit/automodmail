@@ -846,18 +846,16 @@ function normaliseCase (input: string, caseSensitive?: boolean): string {
 }
 
 export function checkTextMatch (input: string, matchText: string[] | undefined, options?: SearchOption): string[] | undefined {
-    if (!options) {
-        options = { search_method: "includes", negate: false, case_sensitive: false };
-    }
+    const searchOptions = options ?? { search_method: "includes", negate: false, case_sensitive: false };
 
     if (!matchText || matchText.length === 0) {
-        return options.negate ? [""] : undefined;
+        return searchOptions.negate ? [""] : undefined;
     }
 
     let result: string[] | undefined = undefined;
 
-    if (options.search_method === "regex") {
-        const regexes = matchText.map(x => new RegExp(x, options.case_sensitive ? undefined : "i"));
+    if (searchOptions.search_method === "regex") {
+        const regexes = matchText.map(x => new RegExp(x, searchOptions.case_sensitive ? undefined : "i"));
         for (const regex of regexes) {
             const matches = input.match(regex);
             if (matches) {
@@ -867,24 +865,24 @@ export function checkTextMatch (input: string, matchText: string[] | undefined, 
         }
     } else {
         let textResult: string | undefined;
-        switch (options.search_method) {
+        switch (searchOptions.search_method) {
             case "includes":
-                textResult = matchText.find(x => normaliseCase(input, options.case_sensitive).includes(normaliseCase(x, options.case_sensitive)));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).includes(normaliseCase(x, searchOptions.case_sensitive)));
                 break;
             case "includes-word":
-                textResult = matchText.find(x => new RegExp(`\\b${RegexEscape(normaliseCase(x, options.case_sensitive))}\\b`).test(normaliseCase(input, options.case_sensitive)));
+                textResult = matchText.find(x => new RegExp(`\\b${RegexEscape(normaliseCase(x, searchOptions.case_sensitive))}\\b`).test(normaliseCase(input, searchOptions.case_sensitive)));
                 break;
             case "starts-with":
-                textResult = matchText.find(x => normaliseCase(input, options.case_sensitive).startsWith(normaliseCase(x, options.case_sensitive)));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).startsWith(normaliseCase(x, searchOptions.case_sensitive)));
                 break;
             case "ends-with":
-                textResult = matchText.find(x => normaliseCase(input, options.case_sensitive).endsWith(normaliseCase(x, options.case_sensitive)));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).endsWith(normaliseCase(x, searchOptions.case_sensitive)));
                 break;
             case "full-exact":
-                textResult = matchText.find(x => normaliseCase(input, options.case_sensitive) === normaliseCase(x, options.case_sensitive));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive) === normaliseCase(x, searchOptions.case_sensitive));
                 break;
             default:
-                throw new Error(`Unexpected search method ${options.search_method ?? "undefined"}`);
+                throw new Error(`Unexpected search method ${searchOptions.search_method ?? "undefined"}`);
         }
 
         if (textResult) {
@@ -894,7 +892,7 @@ export function checkTextMatch (input: string, matchText: string[] | undefined, 
         }
     }
 
-    if (options.negate) {
+    if (searchOptions.negate) {
         if (result) {
             return undefined;
         } else {

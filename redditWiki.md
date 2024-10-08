@@ -61,7 +61,7 @@ Like Automod, you can also use `subject+body`, `~subject+body`, `body+subject` o
 
 Note: This app uses Javascript regex syntax, not Python. Avoid using double quotes with regexes. Like AutoMod, The YAML parser that I am using does not handle \ escape characters well. Single quotes are preferred.
 
-Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case_sensitive)`).
+Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case-sensitive)`).
 
 Previous versions of this app used different checks `subject_regex` and `body_regex` instead of modifiers. Old rules that use these will continue to work but I recommend moving to the new syntax.
 
@@ -254,6 +254,8 @@ You can also set a friendly name on rules using `rule_friendly_name: 'Rule name 
 
 In the configuration screen, you can also specify a "signoff" footer to be included on all autoresponses. It's recommended that you include one of these and use it to make users aware that the response is automatic and that they can reply to get more information from a human.
 
+The "signoff" can be suppressed for individual rules if desired by specifying `signoff: false` in a rule. If the `signoff` attribute is omitted from the rule, the "signoff" will be included unless the "omit for moderators" option applies. 
+
 ## Delay before acting on modmails
 
 In the configuration screen, you can specify a number of seconds before acting on modmails. This may be useful if you have other modmail bots (e.g. [Modmail Quick User Summary](https://developers.reddit.com/apps/modmail-userinfo)) that you would prefer runs first.
@@ -396,7 +398,7 @@ You could use sets of rules that work together to automate approving users into 
     subject+body: ["not showing", "not appearing", "hidden", "removed", "shadowbanned", "shadow banned", "shadowban", "showing up", "deleted", "removal", "remove", "not showing", "botban", "automod", "visible"]
     mod_action:
         moderator_name: ["AutoModerator", "reddit"]
-        mod_action_type: "removelink"
+        mod_action_type: ["removelink", "removecomment"]
         action_within: "2 hours"
         still_in_queue: true
     reply: |

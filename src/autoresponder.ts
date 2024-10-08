@@ -1,57 +1,59 @@
 /* eslint-disable camelcase */
-import {ModAction, ScheduledJobEvent, SettingsValues, TriggerContext, User} from "@devvit/public-api";
-import {ModMail} from "@devvit/protos";
-import {ResponseRule, SearchOption, parseRules} from "./config.js";
-import {formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays} from "date-fns";
-import {ThingPrefix, isBanned, isContributor, isModerator, replaceAll} from "./utility.js";
-import {Language, languageFromString} from "./i18n.js";
+import { ModAction, ScheduledJobEvent, SettingsValues, TriggerContext, User } from "@devvit/public-api";
+import { ModMail } from "@devvit/protos";
+import { ResponseRule, SearchOption, parseRules } from "./config.js";
+import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
+import { ThingPrefix, isBanned, isContributor, isModerator, replaceAll } from "./utility.js";
+import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
-import {AppSetting, defaultSignoff} from "./settings.js";
+import { AppSetting, defaultSignoff } from "./settings.js";
 import markdownEscape from "markdown-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
 
 interface RuleMatchContext {
-    ruleMatched: boolean,
-    priority: number,
-    reply?: string,
-    private_reply?: string,
-    mute?: number,
-    archive?: boolean,
-    unban?: boolean,
-    approve_user?: boolean,
+    ruleMatched: boolean;
+    priority: number;
+    reply?: string;
+    private_reply?: string;
+    mute?: number;
+    archive?: boolean;
+    unban?: boolean;
+    approve_user?: boolean;
     set_flair?: {
-        override_flair?: boolean,
-        set_flair_text?: string,
-        set_flair_css_class?: string,
-        set_flair_template_id?: string,
-    },
-    modActionDate?: Date,
-    modActionTargetPermalink?: string,
-    modActionTargetKind?: "post" | "comment",
-    subjectMatch?: string[],
-    bodyMatch?: string[]
-    verboseLogs: string[],
+        override_flair?: boolean;
+        set_flair_text?: string;
+        set_flair_css_class?: string;
+        set_flair_template_id?: string;
+    };
+    modActionDate?: Date;
+    modActionTargetPermalink?: string;
+    modActionTargetKind?: "post" | "comment";
+    subjectMatch?: string[];
+    bodyMatch?: string[];
+    verboseLogs: string[];
+    includeSignoff: boolean;
 }
 
 interface ModmailAction {
-    conversationId: string,
-    username: string,
-    reply?: string,
-    private_reply?: string
-    mute?: number
-    archive?: boolean,
-    unban?: boolean,
-    approve_user?: boolean,
+    conversationId: string;
+    username: string;
+    reply?: string;
+    private_reply?: string;
+    mute?: number;
+    archive?: boolean;
+    unban?: boolean;
+    approve_user?: boolean;
     set_flair?: {
-        override_flair?: boolean,
-        set_flair_text?: string,
-        set_flair_css_class?: string,
-        set_flair_template_id?: string,
-    },
+        override_flair?: boolean;
+        set_flair_text?: string;
+        set_flair_css_class?: string;
+        set_flair_template_id?: string;
+    };
+    includeSignoff: boolean;
 }
 
 /**
@@ -66,7 +68,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (event.messageAuthor?.id === context.appAccountId) {
+    if (event.messageAuthor.id === context.appAccountId) {
         console.log("Modmail event triggered by this app. Quitting.");
         return;
     }
@@ -79,18 +81,18 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    await context.redis.set(redisKey, new Date().getTime().toString(), {expiration: addDays(new Date(), 1)});
+    await context.redis.set(redisKey, new Date().getTime().toString(), { expiration: addDays(new Date(), 1) });
 
     const conversationResponse = await context.reddit.modMail.getConversation({
         conversationId: event.conversationId,
     });
 
-    if (!conversationResponse.conversation || !conversationResponse.conversation.id) {
+    if (!conversationResponse.conversation?.id) {
         return;
     }
 
     // Ensure that the modmail has a participant i.e. is about a user, and not a sub to sub modmail or internal discussion
-    if (!conversationResponse.conversation.participant || !conversationResponse.conversation.participant.name) {
+    if (!conversationResponse.conversation.participant?.name) {
         console.log("There is no participant for the modmail conversation e.g. internal mod discussion");
         return;
     }
@@ -128,7 +130,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const subreddit = await context.reddit.getCurrentSubreddit();
 
-    const {isAdmin} = currentMessage.author;
+    const { isAdmin } = currentMessage.author;
     let isMod = false;
     if (currentMessage.author.name) {
         isMod = await isModerator(context, subreddit.name, currentMessage.author.name);
@@ -136,18 +138,20 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const settings = await context.settings.getAll();
 
-    const rulesYaml = settings[AppSetting.Rules] as string ?? "";
+    const rulesYaml = settings[AppSetting.Rules] as string | undefined ?? "";
     let rules = parseRules(rulesYaml);
 
     // Narrow down to eligible rules
     if (isFirstMessage) {
         rules = rules.filter(rule => !rule.is_reply && !rule.is_first_user_reply);
     } else {
-        rules = rules.filter(rule => rule.is_reply || rule.is_first_user_reply && isFirstUserReply);
+        rules = rules.filter(rule => rule.is_reply ?? (rule.is_first_user_reply && isFirstUserReply));
     }
 
-    rules = rules.filter(rule => !rule.author || (rule.author && !rule.author.is_moderator || rule.author.is_moderator && isMod));
-    rules = rules.filter(rule => !rule.author || rule.author && (rule.author.is_participant === undefined || rule.author.is_participant === currentMessage.author?.isParticipant));
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    rules = rules.filter(rule => !rule.author || ((rule.author && !rule.author.is_moderator) || (rule.author.is_moderator && isMod)));
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    rules = rules.filter(rule => !rule.author || (rule.author && (rule.author.is_participant === undefined || rule.author.is_participant === currentMessage.author?.isParticipant)));
 
     if (rules.length === 0) {
         console.log("No eligible rules exist for a message in this state. Quitting.");
@@ -168,7 +172,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     // Sort rules by priority descending.
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     for (const rule of rules) {
-        // eslint-disable-next-line no-await-in-loop
         const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
         processedRules.push(ruleResult);
 
@@ -238,6 +241,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         unban: matchedRule.unban,
         approve_user: matchedRule.approve_user,
         set_flair: matchedRule.set_flair,
+        includeSignoff: matchedRule.includeSignoff,
     };
 
     if (action.set_flair?.set_flair_text) {
@@ -245,11 +249,11 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.reply) {
-        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, event.messageAuthor.name, subreddit.name, settings);
+        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subreddit.name, settings);
 
-        const signoff = settings[AppSetting.Signoff] as string ?? defaultSignoff;
-        const includeSignoffForMods = settings[AppSetting.IncludeSignoffForMods] as boolean ?? false;
-        if (signoff && (!isMod || includeSignoffForMods)) {
+        const signoff = settings[AppSetting.Signoff] as string | undefined ?? defaultSignoff;
+        const includeSignoffForMods = settings[AppSetting.IncludeSignoffForMods] as boolean | undefined ?? false;
+        if (signoff && matchedRule.includeSignoff && (!isMod || includeSignoffForMods)) {
             replyMessage += `\n\n${signoff}`;
         }
 
@@ -257,15 +261,15 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.private_reply) {
-        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, event.messageAuthor.name, subreddit.name, settings);
+        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subreddit.name, settings);
     }
 
-    const sendAfterDelay = settings[AppSetting.SecondsDelayBeforeSend] as number ?? 0;
+    const sendAfterDelay = settings[AppSetting.SecondsDelayBeforeSend] as number | undefined ?? 0;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
             name: "actOnMessageAfterDelay",
-            data: {action},
+            data: { action },
             runAt: addSeconds(new Date(), sendAfterDelay),
         });
     } else {
@@ -398,13 +402,14 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         approve_user: rule.approve_user,
         set_flair: rule.author?.set_flair,
         verboseLogs: [],
+        includeSignoff: rule.signoff ?? true,
     };
 
     if (rule.rule_friendly_name) {
         logDebug(rule.verbose_logs, `Processing rule with name "${rule.rule_friendly_name}"`, result.verboseLogs);
     }
 
-    if (rule.moderators_exempt !== false && userIsModerator && !(rule.author && rule.author.is_moderator)) {
+    if (rule.moderators_exempt !== false && userIsModerator && !rule.author?.is_moderator) {
         logDebug(rule.verbose_logs, "Rule exempts moderators, and user is a mod.", result.verboseLogs);
         return result;
     }
@@ -575,7 +580,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 }
             }
 
-            if (rule.author.flair_text || rule.author.flair_css_class || rule.author.flair_css_class) {
+            if (rule.author.flair_text || rule.author.flair_css_class || rule.author.notflair_css_class) {
                 const flair = await participant.getUserFlairBySubreddit(subredditName);
                 if (!flair) {
                     logDebug(rule.verbose_logs, "User does not have flair, but flair checks exist. Skipping rule.", result.verboseLogs);
@@ -667,7 +672,6 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             modLog.push(...entries);
         } else {
             for (const actionType of rule.mod_action.mod_action_type) {
-                // eslint-disable-next-line no-await-in-loop
                 const entries = await context.reddit.getModerationLog({
                     subredditName,
                     moderatorUsernames: rule.mod_action.moderator_name,
@@ -686,8 +690,9 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
 
         if (rule.mod_action.action_reason) {
-            modLog = modLog.filter(logEntry => logEntry.details && checkTextMatch(logEntry.details, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options)
-                || logEntry.description && checkTextMatch(logEntry.description, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options));
+            modLog = modLog.filter(logEntry => (logEntry.details && checkTextMatch(logEntry.details, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options))
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+                || (logEntry.description && checkTextMatch(logEntry.description, rule.mod_action?.action_reason, rule.mod_action?.action_reason_options)));
             console.log(`After removing non-matching reasons: ${modLog.length} log entries still found`);
         }
 
@@ -722,9 +727,9 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
 
     if (rule.sub_visibility && context) {
         const subreddit = await context.reddit.getCurrentSubreddit();
-        if (rule.sub_visibility === "private" && (subreddit.type !== "private" && subreddit.type !== "employees_only")
-                || rule.sub_visibility === "restricted" && subreddit.type !== "restricted"
-                || rule.sub_visibility === "public" && (subreddit.type === "private" || subreddit.type === "restricted" || subreddit.type === "employees_only")) {
+        if ((rule.sub_visibility === "private" && (subreddit.type !== "private" && subreddit.type !== "employees_only"))
+            || (rule.sub_visibility === "restricted" && subreddit.type !== "restricted")
+            || (rule.sub_visibility === "public" && (subreddit.type === "private" || subreddit.type === "restricted" || subreddit.type === "employees_only"))) {
             logDebug(rule.verbose_logs, `Subreddit is ${subreddit.type} not ${rule.sub_visibility}.`, result.verboseLogs);
             return result;
         } else {
@@ -746,7 +751,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
  */
 export function meetsNumericThreshold (input: number, threshold: string): boolean {
     const regex = new RegExp(numericComparatorPattern);
-    const matches = threshold.match(regex);
+    const matches = regex.exec(threshold);
     if (matches?.length !== 3) {
         return false;
     }
@@ -780,7 +785,7 @@ export function meetsNumericThreshold (input: number, threshold: string): boolea
  */
 export function meetsDateThreshold (input: Date, threshold: string, defaultOperator?: string): boolean {
     const regex = new RegExp(dateComparatorPattern);
-    const matches = threshold.match(regex);
+    const matches = regex.exec(threshold);
     if (matches?.length !== 4) {
         return false;
     }
@@ -841,18 +846,16 @@ function normaliseCase (input: string, caseSensitive?: boolean): string {
 }
 
 export function checkTextMatch (input: string, matchText: string[] | undefined, options?: SearchOption): string[] | undefined {
-    if (!options) {
-        options = {search_method: "includes", negate: false, case_sensitive: false};
-    }
+    const searchOptions = options ?? { search_method: "includes", negate: false, case_sensitive: false };
 
     if (!matchText || matchText.length === 0) {
-        return options.negate ? [""] : undefined;
+        return searchOptions.negate ? [""] : undefined;
     }
 
     let result: string[] | undefined = undefined;
 
-    if (options.search_method === "regex") {
-        const regexes = matchText.map(x => new RegExp(x, options?.case_sensitive ? undefined : "i"));
+    if (searchOptions.search_method === "regex") {
+        const regexes = matchText.map(x => new RegExp(x, searchOptions.case_sensitive ? undefined : "i"));
         for (const regex of regexes) {
             const matches = input.match(regex);
             if (matches) {
@@ -862,24 +865,24 @@ export function checkTextMatch (input: string, matchText: string[] | undefined, 
         }
     } else {
         let textResult: string | undefined;
-        switch (options.search_method) {
+        switch (searchOptions.search_method) {
             case "includes":
-                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive).includes(normaliseCase(x, options?.case_sensitive)));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).includes(normaliseCase(x, searchOptions.case_sensitive)));
                 break;
             case "includes-word":
-                textResult = matchText.find(x => new RegExp(`\\b${RegexEscape(normaliseCase(x, options?.case_sensitive))}\\b`).test(normaliseCase(input, options?.case_sensitive)));
+                textResult = matchText.find(x => new RegExp(`\\b${RegexEscape(normaliseCase(x, searchOptions.case_sensitive))}\\b`).test(normaliseCase(input, searchOptions.case_sensitive)));
                 break;
             case "starts-with":
-                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive).startsWith(normaliseCase(x, options?.case_sensitive)));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).startsWith(normaliseCase(x, searchOptions.case_sensitive)));
                 break;
             case "ends-with":
-                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive).endsWith(normaliseCase(x, options?.case_sensitive)));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).endsWith(normaliseCase(x, searchOptions.case_sensitive)));
                 break;
             case "full-exact":
-                textResult = matchText.find(x => normaliseCase(input, options?.case_sensitive) === normaliseCase(x, options?.case_sensitive));
+                textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive) === normaliseCase(x, searchOptions.case_sensitive));
                 break;
             default:
-                throw new Error(`Unexpected search method ${options.search_method ?? "undefined"}`);
+                throw new Error(`Unexpected search method ${searchOptions.search_method ?? "undefined"}`);
         }
 
         if (textResult) {
@@ -889,7 +892,7 @@ export function checkTextMatch (input: string, matchText: string[] | undefined, 
         }
     }
 
-    if (options.negate) {
+    if (searchOptions.negate) {
         if (result) {
             return undefined;
         } else {
@@ -905,23 +908,20 @@ const placeholderRegex = /{{match(?:-(subject|body))?(?:-(\d+))?}}/;
 function applyMatchPlaceholders (input: string, result: RuleMatchContext): string {
     let output = input;
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-        const matches = output.match(placeholderRegex);
-        if (!matches || matches.length !== 3) {
-            break;
-        }
-
+    let matches = placeholderRegex.exec(output);
+    while (matches && matches.length === 3) {
         const [placeholder] = matches;
 
         output = replaceAll(output, placeholder, getMatchPlaceholderText(placeholder, result));
+
+        matches = placeholderRegex.exec(output);
     }
 
     return output;
 }
 
 function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext): string {
-    const matches = placeholder.match(placeholderRegex);
+    const matches = placeholderRegex.exec(placeholder);
     if (!matches || matches.length !== 3) {
         return "";
     }
@@ -958,20 +958,20 @@ function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, u
     replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subredditName));
     let language: Language | undefined;
     if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
-        const localeResult = settings[AppSetting.Locale] as string[] ?? ["enUS"];
+        const localeResult = settings[AppSetting.Locale] as string[] | undefined ?? ["enUS"];
         language = languageFromString(localeResult[0]);
     }
 
     if (matchedRule.modActionDate && language) {
-        replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, {locale: language.locale}));
-        replyMessage = replaceAll(replyMessage, "{{mod_action_relative_time}}", formatRelative(matchedRule.modActionDate, new Date(), {locale: language.locale}));
+        replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, { locale: language.locale }));
+        replyMessage = replaceAll(replyMessage, "{{mod_action_relative_time}}", formatRelative(matchedRule.modActionDate, new Date(), { locale: language.locale }));
     }
     if (matchedRule.modActionTargetPermalink) {
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
     }
     if (matchedRule.modActionTargetKind && language) {
         const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
-        let targetKind = settings[settingsKey] as string ?? "";
+        let targetKind = settings[settingsKey] as string | undefined ?? "";
         if (!targetKind) {
             targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
         }
@@ -981,4 +981,3 @@ function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, u
 
     return applyMatchPlaceholders(replyMessage, matchedRule);
 }
-

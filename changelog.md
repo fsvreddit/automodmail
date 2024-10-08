@@ -1,5 +1,10 @@
 ## Release History
 
+### v1.9.2
+
+- Fixed issue with {{author}} placeholder populating mod's name on mod-triggered rules
+- Add `signoff` action, allowing signoffs to be suppressed on individual rules
+
 ### v1.9
 
 - Add `sub_visibility` check, allowing rules to act based on whether the sub is public or private

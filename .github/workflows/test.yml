@@ -1,9 +1,9 @@
-name: build-test
+name: build-test-lint
 on: push
-jobs: 
+jobs:
   build:
     runs-on: ubuntu-latest
-    steps: 
+    steps:
       - name: checkout repo
         uses: actions/checkout@v3
       - name: use node.js
@@ -11,4 +11,7 @@ jobs:
         with:
           node-version: '20.x'
       - run: npm install
-      - run: npm run test 
+      - run: npx tsc --build
+      - run: npx tsc --build --clean
+      - run: npm run test
+      - run: npx eslint

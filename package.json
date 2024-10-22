@@ -9,7 +9,7 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/public-api": "0.10.25",
+    "@devvit/public-api": "0.11.1",
     "@types/lodash": "^4.14.202",
     "@types/markdown-escape": "^1.1.3",
     "@types/pluralize": "^0.0.33",
@@ -20,17 +20,13 @@
     "markdown-escape": "^2.0.0",
     "pluralize": "^8.0.0",
     "regex-escape": "^3.4.10",
-    "toolbox-devvit": "^0.3.0",
     "yaml": "^2.3.4"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.1.0",
     "@eslint/js": "^9.9.0",
     "@stylistic/eslint-plugin": "^2.7.2",
     "@types/eslint__eslintrc": "^2.1.2",
     "@types/eslint__js": "^8.42.3",
-    "@typescript-eslint/eslint-plugin": "^8.1.0",
-    "@typescript-eslint/parser": "^8.1.0",
     "@vitest/eslint-plugin": "^1.1.0",
     "eslint": "^9.9.0",
     "typescript": "5.5.2",

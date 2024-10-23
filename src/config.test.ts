@@ -272,21 +272,6 @@ mute: 28
     expect(t).toThrow();
 });
 
-test("Legacy name regex", () => {
-    const input = `---
-subject: Hello
-author:
-    name_regex: "steve"
-mute: 28
----`;
-
-    const rules = parseRules(input);
-
-    expect(rules[0].author).toBeDefined();
-    expect(rules[0].author?.name_options).toBeDefined();
-    expect(rules[0].author?.name_options?.search_method).toEqual("regex");
-});
-
 test("New name regex", () => {
     const input = `---
 subject: Hello

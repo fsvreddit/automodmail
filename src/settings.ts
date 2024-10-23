@@ -1,4 +1,4 @@
-import { ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage, WikiPagePermissionLevel } from "@devvit/public-api";
+import { JSONObject, ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage, WikiPagePermissionLevel } from "@devvit/public-api";
 import { languageList } from "./i18n.js";
 import { parseRules } from "./config.js";
 import { addSeconds } from "date-fns";
@@ -37,7 +37,7 @@ export const appSettings: SettingsFormField[] = [
                 await context.scheduler.runJob({
                     name: "saveRulesToWikiPage",
                     runAt: addSeconds(new Date(), 5),
-                    data: { userId: context.userId },
+                    data: context.userId ? { userId: context.userId } : undefined,
                 });
             } catch (error) {
                 if (error instanceof Error) {
@@ -106,7 +106,7 @@ export const appSettings: SettingsFormField[] = [
     },
 ];
 
-export async function saveRulesToWikiPage (event: ScheduledJobEvent, context: TriggerContext) {
+export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
     const settings = await context.settings.getAll();
     const currentRules = settings[AppSetting.Rules] as string | undefined;
     const backupToWikiPage = settings[AppSetting.BackupToWikiPage] as boolean | undefined;

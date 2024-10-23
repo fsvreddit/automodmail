@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { ModAction, ScheduledJobEvent, SettingsValues, TriggerContext, User } from "@devvit/public-api";
+import { JSONObject, ModAction, ScheduledJobEvent, SettingsValues, TriggerContext, User } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
 import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
@@ -68,7 +68,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (event.messageAuthor.id === context.appAccountId) {
+    if (event.messageAuthor.name === context.appName) {
         console.log("Modmail event triggered by this app. Quitting.");
         return;
     }
@@ -269,7 +269,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
             name: "actOnMessageAfterDelay",
-            data: { action },
+            data: { action: JSON.stringify(action) },
             runAt: addSeconds(new Date(), sendAfterDelay),
         });
     } else {
@@ -299,11 +299,14 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
     }
 
     if (action.mute) {
-        await context.reddit.modMail.muteConversation({
-            conversationId: action.conversationId,
-            numHours: action.mute * 24,
-        });
-        console.log("User muted");
+        const muteHours = action.mute * 24;
+        if (muteHours === 72 || muteHours === 168 || muteHours === 672) {
+            await context.reddit.modMail.muteConversation({
+                conversationId: action.conversationId,
+                numHours: muteHours,
+            });
+            console.log("User muted");
+        }
     }
 
     if (action.archive) {
@@ -360,13 +363,14 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
     }
 }
 
-export async function actOnMessageAfterDelay (event: ScheduledJobEvent, context: TriggerContext) {
+export async function actOnMessageAfterDelay (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
     if (!event.data) {
         console.log("Scheduler job's data not assigned");
         return;
     }
 
-    const action = event.data.action as ModmailAction;
+    const actionVal = event.data.action as string;
+    const action = JSON.parse(actionVal) as ModmailAction;
     await actOnRule(action, context);
 }
 

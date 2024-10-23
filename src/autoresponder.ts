@@ -269,7 +269,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
             name: "actOnMessageAfterDelay",
-            data: { action },
+            data: { action: JSON.stringify(action) },
             runAt: addSeconds(new Date(), sendAfterDelay),
         });
     } else {
@@ -369,7 +369,8 @@ export async function actOnMessageAfterDelay (event: ScheduledJobEvent<JSONObjec
         return;
     }
 
-    const action = event.data.action as ModmailAction;
+    const actionVal = event.data.action as string;
+    const action = JSON.parse(actionVal) as ModmailAction;
     await actOnRule(action, context);
 }
 

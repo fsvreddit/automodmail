@@ -63,8 +63,6 @@ Note: This app uses Javascript regex syntax, not Python. Avoid using double quot
 
 Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case-sensitive)`).
 
-Previous versions of this app used different checks `subject_regex` and `body_regex` instead of modifiers. Old rules that use these will continue to work but I recommend moving to the new syntax.
-
 ## Account properties
 
 Account properties come under the `author` value, just like in AutoModerator. Two broad categories (threshold checks and other account properties) are supported, and both can be specified in the same rule.
@@ -198,7 +196,7 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `private_reply` works similarly to `reply`, but leaves a private moderator note on the modmail rather than a public response. 
 
-`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`. Note: Due to an issue with the Community Apps platform, all mutes will be for three days until the issue is fixed.
+`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`.
 
 `archive` archives the modmail after sending a reply. You cannot use `archive` without a `reply` or `mute`. E.g. `archive: 'true'`.
 

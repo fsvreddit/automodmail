@@ -341,8 +341,6 @@ function processNode (node: any, nodeName: string) {
         return;
     }
 
-    console.log(properName, options);
-
     if (properName !== nodeName) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         node[properName] = node[nodeName];

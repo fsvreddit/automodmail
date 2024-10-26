@@ -16,8 +16,6 @@ test("Settings interface matches enum", () => {
 
     const interfaceKeys = Object.keys(object);
 
-    console.log(enumValues, interfaceKeys);
-
     const mappings = interfaceKeys.map(key => ({ key, isMapped: enumValues.includes(key) }));
     const expected = interfaceKeys.map(key => ({ key, isMapped: true }));
 

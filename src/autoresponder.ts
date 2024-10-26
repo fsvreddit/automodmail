@@ -122,13 +122,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author && message.author.name === participantName)?.id;
 
-    console.log({
-        isFirstMessage,
-        isFirstUserReply,
-        firstMessageId: firstMessage.id,
-        currentMessageId: currentMessage.id,
-    });
-
     const subreddit = await context.reddit.getCurrentSubreddit();
 
     const { isAdmin } = currentMessage.author;

@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { JSONObject, ModAction, ScheduledJobEvent, SettingsValues, TriggerContext, User } from "@devvit/public-api";
+import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
@@ -9,7 +9,7 @@ import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
-import { AppSetting, defaultSignoff } from "./settings.js";
+import { AppSettings, defaultSignoff, getAllSettings } from "./settings.js";
 import markdownEscape from "markdown-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
@@ -137,9 +137,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         isMod = await isModerator(context, subreddit.name, currentMessage.author.name);
     }
 
-    const settings = await context.settings.getAll();
+    const settings = await getAllSettings(context);
 
-    const rulesYaml = settings[AppSetting.Rules] as string | undefined ?? "";
+    const rulesYaml = settings.rules ?? "";
     let rules = parseRules(rulesYaml);
 
     // Narrow down to eligible rules
@@ -252,8 +252,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     if (matchedRule.reply) {
         let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subreddit.name, settings);
 
-        const signoff = settings[AppSetting.Signoff] as string | undefined ?? defaultSignoff;
-        const includeSignoffForMods = settings[AppSetting.IncludeSignoffForMods] as boolean | undefined ?? false;
+        const signoff = settings.signoff ?? defaultSignoff;
+        const includeSignoffForMods = settings.includeSignoffForMods;
         if (signoff && matchedRule.includeSignoff && (!isMod || includeSignoffForMods)) {
             replyMessage += `\n\n${signoff}`;
         }
@@ -265,7 +265,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subreddit.name, settings);
     }
 
-    const sendAfterDelay = settings[AppSetting.SecondsDelayBeforeSend] as number | undefined ?? 0;
+    const sendAfterDelay = settings.secondsDelayBeforeSend;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
@@ -956,15 +956,15 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
 
     return thingToMatch[index];
 }
-function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: SettingsValues): string {
+
+function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
     let replyMessage = input;
 
     replyMessage = replaceAll(replyMessage, "{{author}}", markdownEscape(userName));
     replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subredditName));
     let language: Language | undefined;
     if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
-        const localeResult = settings[AppSetting.Locale] as string[] | undefined ?? ["enUS"];
-        language = languageFromString(localeResult[0]);
+        language = languageFromString(settings.locale[0]);
     }
 
     if (matchedRule.modActionDate && language) {
@@ -975,8 +975,8 @@ function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, u
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
     }
     if (matchedRule.modActionTargetKind && language) {
-        const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
-        let targetKind = settings[settingsKey] as string | undefined ?? "";
+        // const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
+        let targetKind = matchedRule.modActionTargetKind === "post" ? settings.postString : settings.commentString;
         if (!targetKind) {
             targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
         }

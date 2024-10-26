@@ -2,7 +2,7 @@
 
 Like AutoModerator, just for modmail.
 
-This app allows subreddit moderators to define rules using YAML to autorespond to incoming modmails, and optionally archive the modmail afterwards. 
+This app allows subreddit moderators to define rules using YAML to autorespond to incoming modmails, and optionally archive the modmail afterwards.
 
 The intended use case in most cases is as a "first line" response to common questions, with users invited to reply and ask for more assistance if the autoresponder doesn't answer their question. By default, the app will only respond to the first modmail in the chain but rules can be authored to act on replies.
 
@@ -57,13 +57,11 @@ Like Automod, you can also use `subject+body`, `~subject+body`, `body+subject` o
 * `subject (starts-with)` will only match text at the start of the subject.
 * `subject (ends-with)` will only match text at the start of the subject.
 * `subject (full-exact)` will match the entire subject completely.
-* `subject (regex)` will match using a regular expression. Unlike AutoModerator, this cannot be used in conjunction with one of the other modifiers above but it can be used with the case-sensitive modifier below. 
+* `subject (regex)` will match using a regular expression. Unlike AutoModerator, this cannot be used in conjunction with one of the other modifiers above but it can be used with the case-sensitive modifier below.
 
 Note: This app uses Javascript regex syntax, not Python. Avoid using double quotes with regexes. Like AutoMod, The YAML parser that I am using does not handle \ escape characters well. Single quotes are preferred.
 
 Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case-sensitive)`).
-
-Previous versions of this app used different checks `subject_regex` and `body_regex` instead of modifiers. Old rules that use these will continue to work but I recommend moving to the new syntax.
 
 ## Account properties
 
@@ -143,7 +141,7 @@ Sometimes users write in after an action has been taken against them. These chec
 
 Sub properties are:
 
-`moderator_name`: the name (or names) of the moderator who took the action. This is case sensitive. 
+`moderator_name`: the name (or names) of the moderator who took the action. This is case sensitive.
 
 `mod_action_type`: the type (or types) of mod action taken. This must be one of the following: 'banuser', 'unbanuser', 'spamlink', 'removelink', 'approvelink', 'spamcomment', 'removecomment', 'approvecomment', 'editflair', 'lock', 'unlock', 'muteuser', 'unmuteuser', 'addremovalreason'
 
@@ -159,7 +157,7 @@ Sub properties are:
 
 `still_in_queue`: True or false. Checks to see if a post or comment matching the mod action is still in the mod queue.
 
-**Note**: The app will only look back through the most recent 200 mod actions that match the specified moderator name(s) and/or mod actions. As a result, mod action checks are usually only suitable for fairly recent actions especially if you have a subreddit with a busy mod log. 
+**Note**: The app will only look back through the most recent 200 mod actions that match the specified moderator name(s) and/or mod actions. As a result, mod action checks are usually only suitable for fairly recent actions especially if you have a subreddit with a busy mod log.
 
 ## Priority
 
@@ -196,9 +194,9 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
         Like AutoModerator, this format is supported too.
 
-`private_reply` works similarly to `reply`, but leaves a private moderator note on the modmail rather than a public response. 
+`private_reply` works similarly to `reply`, but leaves a private moderator note on the modmail rather than a public response.
 
-`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`. Note: Due to an issue with the Community Apps platform, all mutes will be for three days until the issue is fixed.
+`mute` mutes the author from modmail, and should be used sparingly (such as on rules that are used as a spam filter of sorts). Takes a number between 1 and 28 for the number of dates to mute for e.g. `mute: 7`.
 
 `archive` archives the modmail after sending a reply. You cannot use `archive` without a `reply` or `mute`. E.g. `archive: 'true'`.
 
@@ -232,7 +230,7 @@ The following placeholders are all supported:
 
 `{{mod_action_target_kind}}` - Either "post" or "comment". Like the timespan above, this will respect the language chosen. You can also choose your own terms for "post" and "comment" in the configuration options if you need to support further languages, or if you think a better translation could have been used (if you do have any suggestions on improving translations, please contact /u/fsv!)
 
-The four mod_action placeholders will only work if a mod_action check is present in the rule. 
+The four mod_action placeholders will only work if a mod_action check is present in the rule.
 
 Matching placeholders are also supported and work exactly like Automod's.
 
@@ -254,7 +252,7 @@ You can also set a friendly name on rules using `rule_friendly_name: 'Rule name 
 
 In the configuration screen, you can also specify a "signoff" footer to be included on all autoresponses. It's recommended that you include one of these and use it to make users aware that the response is automatic and that they can reply to get more information from a human.
 
-The "signoff" can be suppressed for individual rules if desired by specifying `signoff: false` in a rule. If the `signoff` attribute is omitted from the rule, the "signoff" will be included unless the "omit for moderators" option applies. 
+The "signoff" can be suppressed for individual rules if desired by specifying `signoff: false` in a rule. If the `signoff` attribute is omitted from the rule, the "signoff" will be included unless the "omit for moderators" option applies.
 
 ## Delay before acting on modmails
 
@@ -266,7 +264,7 @@ Here are some example rules to provide some inspiration about what is possible.
 
 ## Responding to shadowbanned users
 
-Here's an example rule that replies to a user who might be querying why their content isn't showing up. 
+Here's an example rule that replies to a user who might be querying why their content isn't showing up.
 
     ---
     body: [removed, hidden, shadowban, invisible, deleted]
@@ -279,7 +277,7 @@ Here's an example rule that replies to a user who might be querying why their co
     archive: true
     ---
 
-## Responding to ban appeals from users who aren't banned.
+## Responding to ban appeals from users who aren't banned
 
 Here's an example of a rule that checks for keywords relating to ban appeals, but for users who might not actually be banned (more common than I wish!). If the user isn't banned, they'll receive an auto response telling them so.
 

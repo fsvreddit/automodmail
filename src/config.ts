@@ -299,6 +299,61 @@ const schema: JSONSchemaType<ResponseRule[]> = {
     },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function processNode (node: any, nodeName: string) {
+    const nodeNameRegex = /^(body_regex|subject_regex|~?subject|~?body|~?subject\+body|~?body\+subject|~?name|~?flair_text|~?flair_css_class|action_reason)(?: \(([\w\s,-]+)\))?$/;
+    const matches = nodeNameRegex.exec(nodeName);
+    if (!matches || matches.length !== 3) {
+        return;
+    }
+
+    let properName = matches[1];
+    let searchOptions = matches[2] as string | undefined ?? "";
+    const negate = properName.startsWith("~");
+
+    if (negate) {
+        properName = properName.replace("~", "not");
+    }
+
+    let searchOptionList = searchOptions.split(",").map(x => x.trim());
+    const caseSensitive = searchOptionList.includes("case-sensitive") || searchOptionList.includes("case_sensitive");
+    if (caseSensitive) {
+        searchOptionList = searchOptionList.filter(x => x !== "case-sensitive" && x !== "case_sensitive");
+    }
+
+    searchOptions = searchOptionList.join(", ");
+
+    let options: SearchOption | undefined;
+    if (searchOptions || caseSensitive || negate) {
+        options = {
+            search_method: searchOptions.length > 0 ? searchOptions : "includes",
+            negate,
+            case_sensitive: caseSensitive,
+        };
+    }
+
+    if (properName.endsWith("subject+body") || properName.endsWith("body+subject")) {
+        properName = (negate ? "not" : "") + "subjectandbody";
+    }
+
+    if (properName === nodeName && !options) {
+        // Nothing to do, node is already properly formatted.
+        return;
+    }
+
+    if (properName !== nodeName) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        node[properName] = node[nodeName];
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete, @typescript-eslint/no-unsafe-member-access
+        delete node[nodeName];
+    }
+
+    if (options) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        node[`${properName}_options`] = options;
+    }
+}
+
 /**
  * Parses Modmail Automator rules written in YAML and returns structured objects.
  * @param rules A string containing YAML
@@ -309,61 +364,24 @@ export function parseRules (rules?: string): ResponseRule[] {
         return [];
     }
 
-    // Preprocess rules to replace ~ with not at the beginning of subject/body checks.
-    const preprocessedRules: string[] = [];
-    const searchTypeRegex = /^(subject|body|notsubject|notbody|subjectandbody|notsubjectandbody|(?:\t|\s+)(?:name|notname|flair_text|notflair_text|flair_css_class|notflair_css_class|action_reason))?(?: \((.+)\))?:(.+)$/;
-    for (let line of rules.split("\n")) {
-        if (line.startsWith("subject_regex")) {
-            line = line.replace("subject_regex", "subject (regex)");
-        } else if (line.startsWith("body_regex")) {
-            line = line.replace("body_regex", "body (regex)");
-        } else if (line.trim().startsWith("name_regex")) {
-            line = line.replace("name_regex", "name (regex)");
-        } else if (line.trim().startsWith("~")) {
-            line = line.replace("~", "not");
-        }
+    const documents = parseAllDocuments(rules, { strict: true });
+    const parsedRules = _.compact(documents.map(x => x.toJSON() as ResponseRule | null));
 
-        if (line.startsWith("subject+body") || line.startsWith("notsubject+body")) {
-            line = line.replace("subject+body", "subjectandbody");
+    for (const rule of parsedRules) {
+        for (const node in rule) {
+            processNode(rule, node);
         }
-
-        if (line.startsWith("body+subject") || line.startsWith("notbody+subject")) {
-            line = line.replace("body+subject", "subjectandbody");
-        }
-
-        const matches = searchTypeRegex.exec(line);
-        if (matches?.length === 4) {
-            const [, searchType, searchOptions, matchData] = matches;
-            const searchOption: SearchOption = {};
-            searchOption.negate = searchType.trim().startsWith("not");
-            if (searchOptions) {
-                searchOption.search_method = matchSearchMethod.find(x => searchOptions.includes(x));
-                searchOption.case_sensitive = searchOptions.includes("case-sensitive") || searchOptions.includes("case_sensitive");
-            } else {
-                searchOption.search_method = "includes";
-                searchOption.case_sensitive = false;
+        if (rule.author) {
+            for (const node in rule.author) {
+                processNode(rule.author, node);
             }
-
-            const currentLeadingWhitespace = searchType.substring(0, searchType.length - searchType.trimStart().length);
-            const newLeadingWhitespace = currentLeadingWhitespace === "" ? "    " : currentLeadingWhitespace.repeat(2);
-
-            preprocessedRules.push(
-                `${searchType}:${matchData}`,
-                `${searchType}_options:`,
-                `${newLeadingWhitespace}search_method: ${JSON.stringify(searchOption.search_method)}`,
-                `${newLeadingWhitespace}negate: ${JSON.stringify(searchOption.negate)}`,
-                `${newLeadingWhitespace}case_sensitive: ${JSON.stringify(searchOption.case_sensitive)}`,
-            );
-        } else {
-            preprocessedRules.push(line);
+        }
+        if (rule.mod_action) {
+            for (const node in rule.mod_action) {
+                processNode(rule.mod_action, node);
+            }
         }
     }
-
-    const documents = parseAllDocuments(preprocessedRules.join("\n"), {
-        strict: true,
-    });
-
-    const parsedRules = _.compact(documents.map(x => x.toJSON() as ResponseRule | null));
 
     const ajv = new Ajv.default({
         coerceTypes: "array",

@@ -1,14 +1,15 @@
 /* eslint-disable camelcase */
-import { ModAction, ScheduledJobEvent, SettingsValues, TriggerContext, User } from "@devvit/public-api";
+import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
+import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
 import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
-import { ThingPrefix, isBanned, isContributor, isModerator, replaceAll } from "./utility.js";
+import { isBanned, isContributor, isModerator, replaceAll } from "./utility.js";
 import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
 import RegexEscape from "regex-escape";
-import { AppSetting, defaultSignoff } from "./settings.js";
+import { AppSettings, defaultSignoff, getAllSettings } from "./settings.js";
 import markdownEscape from "markdown-escape";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
@@ -68,7 +69,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (event.messageAuthor.id === context.appAccountId) {
+    if (event.messageAuthor.name === context.appName) {
         console.log("Modmail event triggered by this app. Quitting.");
         return;
     }
@@ -121,13 +122,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author && message.author.name === participantName)?.id;
 
-    console.log({
-        isFirstMessage,
-        isFirstUserReply,
-        firstMessageId: firstMessage.id,
-        currentMessageId: currentMessage.id,
-    });
-
     const subreddit = await context.reddit.getCurrentSubreddit();
 
     const { isAdmin } = currentMessage.author;
@@ -136,9 +130,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         isMod = await isModerator(context, subreddit.name, currentMessage.author.name);
     }
 
-    const settings = await context.settings.getAll();
+    const settings = await getAllSettings(context);
 
-    const rulesYaml = settings[AppSetting.Rules] as string | undefined ?? "";
+    const rulesYaml = settings.rules ?? "";
     let rules = parseRules(rulesYaml);
 
     // Narrow down to eligible rules
@@ -251,8 +245,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     if (matchedRule.reply) {
         let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subreddit.name, settings);
 
-        const signoff = settings[AppSetting.Signoff] as string | undefined ?? defaultSignoff;
-        const includeSignoffForMods = settings[AppSetting.IncludeSignoffForMods] as boolean | undefined ?? false;
+        const signoff = settings.signoff ?? defaultSignoff;
+        const includeSignoffForMods = settings.includeSignoffForMods;
         if (signoff && matchedRule.includeSignoff && (!isMod || includeSignoffForMods)) {
             replyMessage += `\n\n${signoff}`;
         }
@@ -264,12 +258,12 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subreddit.name, settings);
     }
 
-    const sendAfterDelay = settings[AppSetting.SecondsDelayBeforeSend] as number | undefined ?? 0;
+    const sendAfterDelay = settings.secondsDelayBeforeSend;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
             name: "actOnMessageAfterDelay",
-            data: { action },
+            data: { action: JSON.stringify(action) },
             runAt: addSeconds(new Date(), sendAfterDelay),
         });
     } else {
@@ -299,11 +293,14 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
     }
 
     if (action.mute) {
-        await context.reddit.modMail.muteConversation({
-            conversationId: action.conversationId,
-            numHours: action.mute * 24,
-        });
-        console.log("User muted");
+        const muteHours = action.mute * 24;
+        if (muteHours === 72 || muteHours === 168 || muteHours === 672) {
+            await context.reddit.modMail.muteConversation({
+                conversationId: action.conversationId,
+                numHours: muteHours,
+            });
+            console.log("User muted");
+        }
     }
 
     if (action.archive) {
@@ -360,13 +357,14 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
     }
 }
 
-export async function actOnMessageAfterDelay (event: ScheduledJobEvent, context: TriggerContext) {
+export async function actOnMessageAfterDelay (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
     if (!event.data) {
         console.log("Scheduler job's data not assigned");
         return;
     }
 
-    const action = event.data.action as ModmailAction;
+    const actionVal = event.data.action as string;
+    const action = JSON.parse(actionVal) as ModmailAction;
     await actOnRule(action, context);
 }
 
@@ -717,9 +715,9 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         result.modActionDate = modLog[0].createdAt;
         if (modLog[0].target) {
             result.modActionTargetPermalink = modLog[0].target.permalink;
-            if (modLog[0].target.id.startsWith(ThingPrefix.Comment)) {
+            if (isCommentId(modLog[0].target.id)) {
                 result.modActionTargetKind = "comment";
-            } else if (modLog[0].target.id.startsWith(ThingPrefix.Post)) {
+            } else if (isLinkId(modLog[0].target.id)) {
                 result.modActionTargetKind = "post";
             }
         }
@@ -951,15 +949,15 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
 
     return thingToMatch[index];
 }
-function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: SettingsValues): string {
+
+function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
     let replyMessage = input;
 
     replyMessage = replaceAll(replyMessage, "{{author}}", markdownEscape(userName));
     replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subredditName));
     let language: Language | undefined;
     if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
-        const localeResult = settings[AppSetting.Locale] as string[] | undefined ?? ["enUS"];
-        language = languageFromString(localeResult[0]);
+        language = languageFromString(settings.locale[0]);
     }
 
     if (matchedRule.modActionDate && language) {
@@ -970,8 +968,8 @@ function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, u
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
     }
     if (matchedRule.modActionTargetKind && language) {
-        const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
-        let targetKind = settings[settingsKey] as string | undefined ?? "";
+        // const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
+        let targetKind = matchedRule.modActionTargetKind === "post" ? settings.postString : settings.commentString;
         if (!targetKind) {
             targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
         }

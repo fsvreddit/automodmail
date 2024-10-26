@@ -1,14 +1,5 @@
 import { TriggerContext } from "@devvit/public-api";
 
-export enum ThingPrefix {
-    Comment = "t1_",
-    Account = "t2_",
-    Post = "t3_",
-    Message = "t4_",
-    Subreddit = "t5_",
-    Award = "t6_",
-}
-
 export async function isContributor (context: TriggerContext, subredditName: string, username: string): Promise<boolean> {
     const filteredContributorList = await context.reddit.getApprovedUsers({ subredditName, username }).all();
     return filteredContributorList.length > 0;

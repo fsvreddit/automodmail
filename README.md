@@ -8,6 +8,12 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### v1.9.4
+
+- Mute duration is now respected
+- Fixed issue parsing YAML rules if top level indent is used
+- Removed support for legacy "subject_regex" and "body_regex" rules (these were deprecated months ago).
+
 ### v1.9.2
 
 - Fixed issue with {{author}} placeholder populating mod's name on mod-triggered rules

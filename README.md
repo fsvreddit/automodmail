@@ -8,7 +8,7 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
-### Next
+### v1.9.4
 
 - Mute duration is now respected
 - Fixed issue parsing YAML rules if top level indent is used

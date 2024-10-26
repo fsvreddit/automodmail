@@ -1,9 +1,10 @@
 /* eslint-disable camelcase */
 import { JSONObject, ModAction, ScheduledJobEvent, SettingsValues, TriggerContext, User } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
+import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
 import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
-import { ThingPrefix, isBanned, isContributor, isModerator, replaceAll } from "./utility.js";
+import { isBanned, isContributor, isModerator, replaceAll } from "./utility.js";
 import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
@@ -721,9 +722,9 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         result.modActionDate = modLog[0].createdAt;
         if (modLog[0].target) {
             result.modActionTargetPermalink = modLog[0].target.permalink;
-            if (modLog[0].target.id.startsWith(ThingPrefix.Comment)) {
+            if (isCommentId(modLog[0].target.id)) {
                 result.modActionTargetKind = "comment";
-            } else if (modLog[0].target.id.startsWith(ThingPrefix.Post)) {
+            } else if (isLinkId(modLog[0].target.id)) {
                 result.modActionTargetKind = "post";
             }
         }

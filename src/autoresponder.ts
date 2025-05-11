@@ -974,11 +974,8 @@ function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, u
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
     }
     if (matchedRule.modActionTargetKind && language) {
-        // const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
         let targetKind = matchedRule.modActionTargetKind === "post" ? settings.postString : settings.commentString;
-        if (!targetKind) {
-            targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
-        }
+        targetKind ??= matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
 
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
     }

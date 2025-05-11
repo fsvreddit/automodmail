@@ -11,6 +11,7 @@ import _ from "lodash";
 import RegexEscape from "regex-escape";
 import { AppSettings, defaultSignoff, getAllSettings } from "./settings.js";
 import markdownEscape from "markdown-escape";
+import json2md from "json2md";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -177,41 +178,46 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const rulesWithDebugInfo = processedRules.filter(x => x.verboseLogs.length > 0);
     if (rulesWithDebugInfo.length > 0) {
-        let debugOutput = "Modmail Automator logs\n\n";
+        const debugOutput: json2md.DataObject[] = [
+            { p: "Modmail Automator logs" },
+        ];
 
         for (const rule of rulesWithDebugInfo) {
-            debugOutput += "---\n\n";
-            debugOutput += `Priority: ${rule.priority}\n\n`;
-            debugOutput += `Rule matched: ${JSON.stringify(rule.ruleMatched)}\n\n`;
-            debugOutput += rule.verboseLogs.map(x => `* ${x}`).join("\n");
-            debugOutput += "\n\n";
+            debugOutput.push([
+                { hr: {} },
+                { p: `Priority: ${rule.priority}` },
+                { p: `Rule matched: ${JSON.stringify(rule.ruleMatched)}` },
+                { ul: rule.verboseLogs },
+            ]);
 
             if (rule.ruleMatched) {
-                debugOutput += "Actions to take if this is the highest priority match:\n\n";
+                debugOutput.push({ p: "Actions to take if this is the highest priority match:" });
+                const bullets: string[] = [];
+
                 if (rule.reply) {
-                    debugOutput += "* Reply to user\n";
+                    bullets.push("Reply to user");
                 }
                 if (rule.private_reply) {
-                    debugOutput += "* Make a private mod note\n";
+                    bullets.push("Make a private mod note");
                 }
                 if (rule.archive) {
-                    debugOutput += "* Archive message\n";
+                    bullets.push("Archive message");
                 }
                 if (rule.mute) {
-                    debugOutput += `* Mute for ${rule.mute} ${pluralize("day", rule.mute)} (note that Reddit may ignore this figure and mute for 3 days regardless)\n`;
+                    bullets.push(`Mute for ${rule.mute} ${pluralize("day", rule.mute)}`);
                 }
                 if (rule.unban) {
-                    debugOutput += "* Unban user\n";
+                    bullets.push("Unban user");
                 }
                 if (rule.set_flair) {
-                    debugOutput += "* Set Flair\n";
+                    bullets.push("Set flair");
                 }
-                debugOutput += "\n";
+                debugOutput.push({ ul: bullets });
             }
         }
 
         await context.reddit.modMail.reply({
-            body: debugOutput,
+            body: json2md(debugOutput),
             conversationId: conversationResponse.conversation.id,
             isInternal: true,
             isAuthorHidden: false,
@@ -549,16 +555,6 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 logDebug(rule.verbose_logs, `Satisfy any threshold is set to ${JSON.stringify(rule.author.satisfy_any_threshold)} therefore threshold checks passed.`, result.verboseLogs);
             }
 
-            if (context && rule.author.is_banned !== undefined) {
-                const userIsBanned = await isBanned(context, subredditName, participant.username);
-                if (rule.author.is_banned !== userIsBanned) {
-                    logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
-                    return result;
-                } else {
-                    logDebug(rule.verbose_logs, "User banned check matched.", result.verboseLogs);
-                }
-            }
-
             if (context && rule.author.is_contributor !== undefined) {
                 const userIsContributor = await isContributor(context, subredditName, participant.username);
                 if (rule.author.is_contributor !== userIsContributor) {
@@ -656,6 +652,16 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             // Participant is undefined, and uncheckable author checks exist.
             logDebug(rule.verbose_logs, "Author is shadowbanned and uncheckable author checks exist.", result.verboseLogs);
             return result;
+        }
+
+        if (context && rule.author.is_banned !== undefined) {
+            const userIsBanned = await isBanned(context, subredditName, username);
+            if (rule.author.is_banned !== userIsBanned) {
+                logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
+                return result;
+            } else {
+                logDebug(rule.verbose_logs, "User banned check matched.", result.verboseLogs);
+            }
         }
     }
 
@@ -968,11 +974,8 @@ function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, u
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
     }
     if (matchedRule.modActionTargetKind && language) {
-        // const settingsKey = matchedRule.modActionTargetKind === "post" ? AppSetting.PostString : AppSetting.CommentString;
         let targetKind = matchedRule.modActionTargetKind === "post" ? settings.postString : settings.commentString;
-        if (!targetKind) {
-            targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
-        }
+        targetKind ??= matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
 
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
     }

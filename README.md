@@ -8,6 +8,10 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### Next
+
+- "banned" check now works on shadowbanned users
+
 ### v1.9.4
 
 - Mute duration is now respected

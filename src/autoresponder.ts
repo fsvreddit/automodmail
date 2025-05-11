@@ -555,16 +555,6 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 logDebug(rule.verbose_logs, `Satisfy any threshold is set to ${JSON.stringify(rule.author.satisfy_any_threshold)} therefore threshold checks passed.`, result.verboseLogs);
             }
 
-            if (context && rule.author.is_banned !== undefined) {
-                const userIsBanned = await isBanned(context, subredditName, username);
-                if (rule.author.is_banned !== userIsBanned) {
-                    logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
-                    return result;
-                } else {
-                    logDebug(rule.verbose_logs, "User banned check matched.", result.verboseLogs);
-                }
-            }
-
             if (context && rule.author.is_contributor !== undefined) {
                 const userIsContributor = await isContributor(context, subredditName, participant.username);
                 if (rule.author.is_contributor !== userIsContributor) {
@@ -662,6 +652,16 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             // Participant is undefined, and uncheckable author checks exist.
             logDebug(rule.verbose_logs, "Author is shadowbanned and uncheckable author checks exist.", result.verboseLogs);
             return result;
+        }
+
+        if (context && rule.author.is_banned !== undefined) {
+            const userIsBanned = await isBanned(context, subredditName, username);
+            if (rule.author.is_banned !== userIsBanned) {
+                logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
+                return result;
+            } else {
+                logDebug(rule.verbose_logs, "User banned check matched.", result.verboseLogs);
+            }
         }
     }
 

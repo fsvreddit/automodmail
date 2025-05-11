@@ -11,6 +11,7 @@ import _ from "lodash";
 import RegexEscape from "regex-escape";
 import { AppSettings, defaultSignoff, getAllSettings } from "./settings.js";
 import markdownEscape from "markdown-escape";
+import json2md from "json2md";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -177,41 +178,46 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const rulesWithDebugInfo = processedRules.filter(x => x.verboseLogs.length > 0);
     if (rulesWithDebugInfo.length > 0) {
-        let debugOutput = "Modmail Automator logs\n\n";
+        const debugOutput: json2md.DataObject[] = [
+            { p: "Modmail Automator logs" },
+        ];
 
         for (const rule of rulesWithDebugInfo) {
-            debugOutput += "---\n\n";
-            debugOutput += `Priority: ${rule.priority}\n\n`;
-            debugOutput += `Rule matched: ${JSON.stringify(rule.ruleMatched)}\n\n`;
-            debugOutput += rule.verboseLogs.map(x => `* ${x}`).join("\n");
-            debugOutput += "\n\n";
+            debugOutput.push([
+                { hr: {} },
+                { p: `Priority: ${rule.priority}` },
+                { p: `Rule matched: ${JSON.stringify(rule.ruleMatched)}` },
+                { ul: rule.verboseLogs },
+            ]);
 
             if (rule.ruleMatched) {
-                debugOutput += "Actions to take if this is the highest priority match:\n\n";
+                debugOutput.push({ p: "Actions to take if this is the highest priority match:" });
+                const bullets: string[] = [];
+
                 if (rule.reply) {
-                    debugOutput += "* Reply to user\n";
+                    bullets.push("Reply to user");
                 }
                 if (rule.private_reply) {
-                    debugOutput += "* Make a private mod note\n";
+                    bullets.push("Make a private mod note");
                 }
                 if (rule.archive) {
-                    debugOutput += "* Archive message\n";
+                    bullets.push("Archive message");
                 }
                 if (rule.mute) {
-                    debugOutput += `* Mute for ${rule.mute} ${pluralize("day", rule.mute)}\n`;
+                    bullets.push(`Mute for ${rule.mute} ${pluralize("day", rule.mute)}`);
                 }
                 if (rule.unban) {
-                    debugOutput += "* Unban user\n";
+                    bullets.push("Unban user");
                 }
                 if (rule.set_flair) {
-                    debugOutput += "* Set Flair\n";
+                    bullets.push("Set flair");
                 }
-                debugOutput += "\n";
+                debugOutput.push({ ul: bullets });
             }
         }
 
         await context.reddit.modMail.reply({
-            body: debugOutput,
+            body: json2md(debugOutput),
             conversationId: conversationResponse.conversation.id,
             isInternal: true,
             isAuthorHidden: false,

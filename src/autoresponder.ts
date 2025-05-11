@@ -198,7 +198,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
                     debugOutput += "* Archive message\n";
                 }
                 if (rule.mute) {
-                    debugOutput += `* Mute for ${rule.mute} ${pluralize("day", rule.mute)} (note that Reddit may ignore this figure and mute for 3 days regardless)\n`;
+                    debugOutput += `* Mute for ${rule.mute} ${pluralize("day", rule.mute)}\n`;
                 }
                 if (rule.unban) {
                     debugOutput += "* Unban user\n";

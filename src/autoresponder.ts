@@ -556,7 +556,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
 
             if (context && rule.author.is_banned !== undefined) {
-                const userIsBanned = await isBanned(context, subredditName, participant.username);
+                const userIsBanned = await isBanned(context, subredditName, username);
                 if (rule.author.is_banned !== userIsBanned) {
                     logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
                     return result;

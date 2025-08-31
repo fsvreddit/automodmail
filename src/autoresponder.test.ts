@@ -1,7 +1,8 @@
 /* eslint-disable camelcase */
 import { addDays, addMinutes, addMonths, addWeeks, addYears } from "date-fns";
-import { checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold } from "./autoresponder.js";
+import { applyReplyPlaceholders, checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold, RuleMatchContext } from "./autoresponder.js";
 import { ResponseRule, parseRules } from "./config.js";
+import { AppSettings } from "./settings.js";
 
 test("Within numeric threshold less than", () => {
     const result = meetsNumericThreshold(5, "< 10");
@@ -415,4 +416,35 @@ mute: 28
 
     const ruleResult2 = await checkRule(undefined, "testsub", rule, "a", "message body", "username", undefined, false, false);
     expect(ruleResult2.ruleMatched).toBeFalsy();
+});
+
+test("applyReplyPlaceholders works correctly for target kind and permalink", () => {
+    const input1 = "{{mod_action_target_kind}}";
+    const input2 = "{{mod_action_target_permalink}}";
+
+    const ruleMatchContext: RuleMatchContext = {
+        ruleMatched: true,
+        priority: 1,
+        verboseLogs: [],
+        includeSignoff: true,
+        modActionTargetKind: "post",
+        modActionTargetPermalink: "https://reddit.com/r/example/comments/abc123/example_post/",
+    };
+
+    const settings: AppSettings = {
+        backupToWikiPage: false,
+        includeSignoffForMods: true,
+        locale: ["en"],
+        secondsDelayBeforeSend: 0,
+        commentString: "",
+        rules: "",
+        signoff: "",
+        postString: "",
+    };
+
+    const output1 = applyReplyPlaceholders(input1, ruleMatchContext, "testuser", "testsubreddit", settings);
+    const output2 = applyReplyPlaceholders(input2, ruleMatchContext, "testuser", "testsubreddit", settings);
+
+    expect(output1).toEqual("post");
+    expect(output2).toEqual("https://reddit.com/r/example/comments/abc123/example_post/");
 });

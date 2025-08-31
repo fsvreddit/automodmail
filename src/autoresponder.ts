@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
-import { isCommentId, isLinkId } from "@devvit/shared-types/tid.js";
+import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
 import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
 import { isBanned, isContributor, isModerator, replaceAll } from "./utility.js";
@@ -16,7 +16,7 @@ import json2md from "json2md";
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
 
-interface RuleMatchContext {
+export interface RuleMatchContext {
     ruleMatched: boolean;
     priority: number;
     reply?: string;
@@ -956,7 +956,7 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
     return thingToMatch[index];
 }
 
-function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
+export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
     let replyMessage = input;
 
     replyMessage = replaceAll(replyMessage, "{{author}}", markdownEscape(userName));
@@ -975,7 +975,9 @@ function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, u
     }
     if (matchedRule.modActionTargetKind && language) {
         let targetKind = matchedRule.modActionTargetKind === "post" ? settings.postString : settings.commentString;
-        targetKind ??= matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
+        if (targetKind === undefined || targetKind === "") {
+            targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
+        }
 
         replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
     }

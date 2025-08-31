@@ -8,6 +8,11 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### v1.9.6
+
+- Fixes a bug that prevented the {{mod_action_target_kind}} and {{mod_action_target_permalink}} placeholders from working correctly
+- Update to latest Devvit version
+
 ### v1.9.5
 
 - "banned" check now works on shadowbanned users

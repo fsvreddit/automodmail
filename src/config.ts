@@ -75,6 +75,7 @@ export interface ResponseRule {
         action_reason?: string[];
         action_reason_options?: SearchOption;
         still_in_queue?: boolean;
+        was_deleted?: boolean;
     };
     sub_visibility?: "public" | "private" | "restricted";
     priority?: number;
@@ -308,6 +309,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         additionalProperties: false,
                     },
                     still_in_queue: { type: "boolean", nullable: true },
+                    was_deleted: { type: "boolean", nullable: true },
                 },
                 nullable: true,
                 additionalProperties: false,

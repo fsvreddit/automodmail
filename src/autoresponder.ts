@@ -12,6 +12,7 @@ import RegexEscape from "regex-escape";
 import { AppSettings, defaultSignoff, getAllSettings } from "./settings.js";
 import markdownEscape from "markdown-escape";
 import json2md from "json2md";
+import { wasThingDeleted } from "./deletions.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -758,6 +759,18 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             return result;
         } else {
             logDebug(rule.verbose_logs, `Found ${modLog.length} matching ${pluralize("entry", modLog.length)} in mod log.`, result.verboseLogs);
+        }
+
+        if (rule.mod_action.was_deleted !== undefined) {
+            for (const targetId of _.compact(modLog.map(x => x.target?.id))) {
+                const wasDeleted = await wasThingDeleted(targetId, context);
+                if (wasDeleted !== rule.mod_action.was_deleted) {
+                    logDebug(rule.verbose_logs, `Mod action ${targetId} failed deleted check.`, result.verboseLogs);
+                    modLog = modLog.filter(x => x.target?.id !== targetId);
+                } else {
+                    logDebug(rule.verbose_logs, `Mod action ${targetId} passed deleted check.`, result.verboseLogs);
+                }
+            }
         }
 
         result.modActionDate = modLog[0].createdAt;

@@ -14,6 +14,7 @@ For older releases please see the [full change log](https://github.com/fsvreddit
 - Add ability to check a user's social links
 - Add `was_deleted` check to mod action checks
 - When setting user flair text, the existing flair CSS class is respected
+- App can now act on outgoing messages triggered by itself (e.g. when approving users)
 - Update Devvit
 
 ### v1.9.6

@@ -73,11 +73,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (event.messageAuthor.name === context.appName) {
-        console.log("Modmail event triggered by this app. Quitting.");
-        return;
-    }
-
     // Mitigate against duplicate triggers
     const redisKey = `alreadyprocessed~${event.messageId}`;
     const alreadyProcessed = await context.redis.get(redisKey);
@@ -113,6 +108,11 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const isFirstMessage = event.messageId.includes(firstMessage.id);
     const currentMessage = messagesInConversation.find(message => message.id && event.messageId.includes(message.id));
+
+    if (!isFirstMessage && event.messageAuthor.name === context.appName) {
+        console.log("Message is not the first message, and was sent by the bot. Quitting.");
+        return;
+    }
 
     if (!currentMessage) {
         console.log("Cannot find current message!");

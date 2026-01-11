@@ -78,6 +78,7 @@ export interface ResponseRule {
     mute?: number;
     archive?: boolean;
     unban?: boolean;
+    add_modnote?: string;
     approve_user?: boolean;
     verbose_logs?: boolean;
     signoff?: boolean;
@@ -291,6 +292,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             mute: { type: "integer", nullable: true },
             archive: { type: "boolean", nullable: true },
             unban: { type: "boolean", nullable: true },
+            add_modnote: { type: "string", nullable: true },
             approve_user: { type: "boolean", nullable: true },
             verbose_logs: { type: "boolean", nullable: true },
             signoff: { type: "boolean", nullable: true },

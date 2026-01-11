@@ -202,6 +202,8 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `unban` unbans the user (if they were already banned). E.g. `unban: 'true'`.
 
+`add_modnote` adds a mod note to the user, and multi-line mod notes are supported.
+
 `approve_user` adds the user as an approved submitter (if they are not already one). E.g. `approve_user: 'true'`.
 
 You can also set a flair by adding the `set_flair` property under the `author` attribute e.g.
@@ -214,7 +216,7 @@ You can also set a flair by adding the `set_flair` property under the `author` a
 
 Properties supported for set_flair also includes `set_flair_template_id`. If override_flair is false or missing, users with existing flair won't have a new flair set.
 
-### Placeholders on replies
+### Placeholders on replies and mod notes
 
 The following placeholders are all supported:
 
@@ -222,9 +224,9 @@ The following placeholders are all supported:
 
 `{{subreddit}}` - the subreddit the modmail was sent to.
 
-`{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. Example output formats can be seen [here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
+`{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. [Example output formats can be seen here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
 
-`{{mod_action_relative_time}}` - a human readable relative date in words. Example output formats can be seen [here](https://date-fns.org/v3.6.0/docs/formatRelative). Like `{{mod_action_timestamp_to_now}}`, the output is localised.
+`{{mod_action_relative_time}}` - a human readable relative date in words. [Example output formats can be seen here](https://date-fns.org/v3.6.0/docs/formatRelative). Like `{{mod_action_timestamp_to_now}}`, the output is localised.
 
 `{{mod_action_target_permalink}}` - the link to the post or comment (if applicable) that the mod action was taken against.
 
@@ -239,6 +241,12 @@ Matching placeholders are also supported and work exactly like Automod's.
 * `{{match-2}}`, `{{match-subject-2}}`, `{{match-body-2}}` for any number higher than 1 will return the capturing group for regex searches. E.g. `{{match-2}}` returns the first capturing group from either subject or body, `{{match-body-3}}` the second from the body, and so on.
 
 Negated searches (e.g. ~subject) will not result in matching placeholder output.
+
+For mod notes specifically, the following additional placeholders are supported:
+
+* `{{mod-name}}` can be used specifically for rules triggered by subreddit moderators (e.g. mod macros).
+* `{{message-subject}}` is substituted with the subject line of the modmail conversation
+* `{{message-permalink}}` is substituted with the permalink to the modmail on new modmail
 
 ## Debug options
 

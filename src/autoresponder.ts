@@ -24,6 +24,7 @@ export interface RuleMatchContext {
     mute?: number;
     archive?: boolean;
     unban?: boolean;
+    add_modnote?: string;
     approve_user?: boolean;
     set_flair?: {
         override_flair?: boolean;
@@ -48,6 +49,7 @@ interface ModmailAction {
     mute?: number;
     archive?: boolean;
     unban?: boolean;
+    add_modnote?: string;
     approve_user?: boolean;
     set_flair?: {
         override_flair?: boolean;
@@ -64,7 +66,7 @@ interface ModmailAction {
  * @param context Context
  */
 export async function onModmailReceiveEvent (event: ModMail, context: TriggerContext) {
-    console.log("Received modmail trigger event.");
+    console.log(`Received modmail trigger event for ${event.conversationId}.`);
 
     if (!event.messageAuthor) {
         return;
@@ -123,12 +125,12 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author?.name === participantName)?.id;
 
-    const subreddit = await context.reddit.getCurrentSubreddit();
+    const subredditName = context.subredditName ?? await context.reddit.getCurrentSubredditName();
 
     const { isAdmin } = currentMessage.author;
     let isMod = false;
     if (currentMessage.author.name) {
-        isMod = await isModerator(context.reddit, subreddit.name, currentMessage.author.name);
+        isMod = await isModerator(context.reddit, subredditName, currentMessage.author.name);
     }
 
     const settings = await getAllSettings(context);
@@ -167,7 +169,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     // Sort rules by priority descending.
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     for (const rule of rules) {
-        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
+        const ruleResult = await checkRule(context, subredditName, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
         processedRules.push(ruleResult);
 
         if (ruleResult.ruleMatched) {
@@ -239,6 +241,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         archive: matchedRule.archive,
         mute: matchedRule.mute,
         unban: matchedRule.unban,
+        add_modnote: matchedRule.add_modnote,
         approve_user: matchedRule.approve_user,
         set_flair: matchedRule.set_flair,
         includeSignoff: matchedRule.includeSignoff,
@@ -249,7 +252,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.reply) {
-        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subreddit.name, settings);
+        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subredditName, settings);
 
         const signoff = settings.signoff ?? defaultSignoff;
         const includeSignoffForMods = settings.includeSignoffForMods;
@@ -261,7 +264,18 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.private_reply) {
-        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subreddit.name, settings);
+        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subredditName, settings);
+    }
+
+    if (matchedRule.add_modnote) {
+        action.add_modnote = applyReplyPlaceholders(matchedRule.add_modnote, matchedRule, participantName, subredditName, settings);
+        if (currentMessage.participatingAs === "moderator" && currentMessage.author.name) {
+            action.add_modnote = action.add_modnote.replaceAll("{{mod-name}}", currentMessage.author.name);
+        }
+
+        action.add_modnote = action.add_modnote.replaceAll("{{message-subject}}", conversationResponse.conversation.subject ?? "");
+
+        action.add_modnote = action.add_modnote.replaceAll("{{message-permalink}}", `https://www.reddit.com/mail/all/${conversationResponse.conversation.id.replace("ModmailConversation_", "")}`);
     }
 
     const sendAfterDelay = settings.secondsDelayBeforeSend;
@@ -278,6 +292,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 }
 
 async function actOnRule (action: ModmailAction, context: TriggerContext) {
+    const subredditName = context.subredditName ?? await context.reddit.getCurrentSubredditName();
+
     if (action.reply) {
         await context.reddit.modMail.reply({
             body: action.reply,
@@ -314,52 +330,57 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         console.log("Conversation archived");
     }
 
-    if (action.unban || action.approve_user || action.set_flair) {
-        const subreddit = await context.reddit.getCurrentSubreddit();
+    if (action.unban) {
+        await context.reddit.unbanUser(action.username, subredditName);
+        console.log("User unbanned");
+    }
 
-        if (action.unban) {
-            await context.reddit.unbanUser(action.username, subreddit.name);
-            console.log("User unbanned");
-        }
+    if (action.approve_user) {
+        await context.reddit.approveUser(action.username, subredditName);
+        console.log("User has been added as approved user");
+    }
 
-        if (action.approve_user) {
-            await context.reddit.approveUser(action.username, subreddit.name);
-            console.log("User has been added as approved user");
-        }
+    if (action.set_flair) {
+        let canSetFlair = true;
+        if (!action.set_flair.override_flair) {
+            let user: User | undefined;
+            try {
+                user = await context.reddit.getUserByUsername(action.username);
+            } catch {
+                //
+            }
 
-        if (action.set_flair) {
-            let canSetFlair = true;
-            if (!action.set_flair.override_flair) {
-                let user: User | undefined;
-                try {
-                    user = await context.reddit.getUserByUsername(action.username);
-                } catch {
-                    //
-                }
-
-                if (user) {
-                    const currentFlair = await user.getUserFlairBySubreddit(subreddit.name);
-                    if (currentFlair?.flairText) {
-                        canSetFlair = false;
-                    }
-                } else {
+            if (user) {
+                const currentFlair = await user.getUserFlairBySubreddit(subredditName);
+                if (currentFlair?.flairText) {
                     canSetFlair = false;
                 }
-            }
-
-            if (canSetFlair) {
-                await context.reddit.setUserFlair({
-                    subredditName: subreddit.name,
-                    username: action.username,
-                    text: action.set_flair.set_flair_text,
-                    cssClass: action.set_flair.set_flair_css_class,
-                    flairTemplateId: action.set_flair.set_flair_template_id,
-                });
-                console.log("New flair set");
             } else {
-                console.log("User already has a flair, cannot set.");
+                canSetFlair = false;
             }
         }
+
+        if (canSetFlair) {
+            await context.reddit.setUserFlair({
+                subredditName,
+                username: action.username,
+                text: action.set_flair.set_flair_text,
+                cssClass: action.set_flair.set_flair_css_class,
+                flairTemplateId: action.set_flair.set_flair_template_id,
+            });
+            console.log("New flair set");
+        } else {
+            console.log("User already has a flair, cannot set.");
+        }
+    }
+
+    if (action.add_modnote) {
+        await context.reddit.addModNote({
+            subreddit: subredditName,
+            user: action.username,
+            note: action.add_modnote,
+        });
+        console.log("Mod note added");
     }
 }
 
@@ -403,6 +424,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         mute: rule.mute,
         archive: rule.archive,
         unban: rule.unban,
+        add_modnote: rule.add_modnote,
         approve_user: rule.approve_user,
         set_flair: rule.author?.set_flair,
         verboseLogs: [],

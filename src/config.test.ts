@@ -74,12 +74,12 @@ mute: 28
 
     const rules = parseRules(input);
     const subject = rules[0].subject;
-    if (subject) {
-        expect(subject).toHaveLength(1);
-        expect(subject[0]).toEqual("Hello");
-    } else {
-        throw new Error("Didn't parse correctly.");
+    if (!subject) {
+        assert.fail("Subject not defined");
     }
+
+    expect(subject).toHaveLength(1);
+    expect(subject[0]).toEqual("Hello");
 });
 
 test("Numeric comparator valid", () => {

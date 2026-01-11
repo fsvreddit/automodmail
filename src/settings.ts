@@ -27,7 +27,7 @@ export interface AppSettings {
 
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 function selectFieldHasOptionChosen (event: SettingsFormFieldValidatorEvent<string[]>): void | string {
-    if (!event.value || event.value.length !== 1) {
+    if (event.value?.length !== 1) {
         return "You must choose an option";
     }
 }
@@ -134,7 +134,7 @@ export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject |
         //
     }
 
-    if (wikiPage && wikiPage.content.trim() === currentRules.trim()) {
+    if (wikiPage?.content.trim() === currentRules.trim()) {
         // Rules haven't changed.
         return;
     }

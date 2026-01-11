@@ -4,7 +4,7 @@ import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
 import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
-import { isBanned, isContributor, isModerator, replaceAll } from "./utility.js";
+import { isBanned, isContributor, isModerator } from "devvit-helpers";
 import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
@@ -121,14 +121,14 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author && message.author.name === participantName)?.id;
+    const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author?.name === participantName)?.id;
 
     const subreddit = await context.reddit.getCurrentSubreddit();
 
     const { isAdmin } = currentMessage.author;
     let isMod = false;
     if (currentMessage.author.name) {
-        isMod = await isModerator(context, subreddit.name, currentMessage.author.name);
+        isMod = await isModerator(context.reddit, subreddit.name, currentMessage.author.name);
     }
 
     const settings = await getAllSettings(context);
@@ -556,7 +556,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
 
             if (context && rule.author.is_contributor !== undefined) {
-                const userIsContributor = await isContributor(context, subredditName, participant.username);
+                const userIsContributor = await isContributor(context.reddit, subredditName, participant.username);
                 if (rule.author.is_contributor !== userIsContributor) {
                     logDebug(rule.verbose_logs, "Approved User check failed, skipping rule.", result.verboseLogs);
                     return result;
@@ -655,7 +655,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
 
         if (context && rule.author.is_banned !== undefined) {
-            const userIsBanned = await isBanned(context, subredditName, username);
+            const userIsBanned = await isBanned(context.reddit, subredditName, username);
             if (rule.author.is_banned !== userIsBanned) {
                 logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
                 return result;
@@ -913,10 +913,10 @@ function applyMatchPlaceholders (input: string, result: RuleMatchContext): strin
     let output = input;
 
     let matches = placeholderRegex.exec(output);
-    while (matches && matches.length === 3) {
+    while (matches?.length === 3) {
         const [placeholder] = matches;
 
-        output = replaceAll(output, placeholder, getMatchPlaceholderText(placeholder, result));
+        output = output.replaceAll(placeholder, getMatchPlaceholderText(placeholder, result));
 
         matches = placeholderRegex.exec(output);
     }
@@ -926,7 +926,7 @@ function applyMatchPlaceholders (input: string, result: RuleMatchContext): strin
 
 function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext): string {
     const matches = placeholderRegex.exec(placeholder);
-    if (!matches || matches.length !== 3) {
+    if (matches?.length !== 3) {
         return "";
     }
 
@@ -959,19 +959,19 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
 export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
     let replyMessage = input;
 
-    replyMessage = replaceAll(replyMessage, "{{author}}", markdownEscape(userName));
-    replyMessage = replaceAll(replyMessage, "{{subreddit}}", markdownEscape(subredditName));
+    replyMessage = replyMessage.replaceAll("{{author}}", markdownEscape(userName));
+    replyMessage = replyMessage.replaceAll("{{subreddit}}", markdownEscape(subredditName));
     let language: Language | undefined;
     if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
         language = languageFromString(settings.locale[0]);
     }
 
     if (matchedRule.modActionDate && language) {
-        replyMessage = replaceAll(replyMessage, "{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, { locale: language.locale }));
-        replyMessage = replaceAll(replyMessage, "{{mod_action_relative_time}}", formatRelative(matchedRule.modActionDate, new Date(), { locale: language.locale }));
+        replyMessage = replyMessage.replaceAll("{{mod_action_timespan_to_now}}", formatDistanceToNow(matchedRule.modActionDate, { locale: language.locale }));
+        replyMessage = replyMessage.replaceAll("{{mod_action_relative_time}}", formatRelative(matchedRule.modActionDate, new Date(), { locale: language.locale }));
     }
     if (matchedRule.modActionTargetPermalink) {
-        replyMessage = replaceAll(replyMessage, "{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
+        replyMessage = replyMessage.replaceAll("{{mod_action_target_permalink}}", matchedRule.modActionTargetPermalink);
     }
     if (matchedRule.modActionTargetKind && language) {
         let targetKind = matchedRule.modActionTargetKind === "post" ? settings.postString : settings.commentString;
@@ -979,7 +979,7 @@ export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchCon
             targetKind = matchedRule.modActionTargetKind === "post" ? language.postWord : language.commentWord;
         }
 
-        replyMessage = replaceAll(replyMessage, "{{mod_action_target_kind}}", targetKind);
+        replyMessage = replyMessage.replaceAll("{{mod_action_target_kind}}", targetKind);
     }
 
     return applyMatchPlaceholders(replyMessage, matchedRule);

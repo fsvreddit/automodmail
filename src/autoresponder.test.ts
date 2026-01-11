@@ -1,3 +1,4 @@
+/* eslint-disable vitest/no-conditional-expect */
 /* eslint-disable camelcase */
 import { addDays, addMinutes, addMonths, addWeeks, addYears } from "date-fns";
 import { applyReplyPlaceholders, checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold, RuleMatchContext } from "./autoresponder.js";

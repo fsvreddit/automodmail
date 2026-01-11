@@ -303,7 +303,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
 function processNode (node: any, nodeName: string) {
     const nodeNameRegex = /^(body_regex|subject_regex|~?subject|~?body|~?subject\+body|~?body\+subject|~?name|~?flair_text|~?flair_css_class|action_reason)(?: \(([\w\s,-]+)\))?$/;
     const matches = nodeNameRegex.exec(nodeName);
-    if (!matches || matches.length !== 3) {
+    if (matches?.length !== 3) {
         return;
     }
 

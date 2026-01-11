@@ -455,8 +455,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
-    if (rule.notsubject) {
-        if (!checkTextMatch(subject, rule.notsubject, rule.notsubject_options)) {
+    if (rule["~subject"]) {
+        if (!checkTextMatch(subject, rule["~subject"], rule["~subject_options"])) {
             logDebug(rule.verbose_logs, "Negated subject matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -492,8 +492,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
-    if (rule.notbody) {
-        if (!checkTextMatch(body, rule.notbody, rule.notbody_options)) {
+    if (rule["~body"]) {
+        if (!checkTextMatch(body, rule["~body"], rule["~body_options"])) {
             logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -530,8 +530,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
-    if (rule.notsubjectandbody) {
-        if (!checkTextMatch(subject, rule.notsubjectandbody, rule.notsubjectandbody_options) || !checkTextMatch(body, rule.notsubjectandbody, rule.notsubjectandbody_options)) {
+    if (rule["~subjectandbody"]) {
+        if (!checkTextMatch(subject, rule["~subjectandbody"], rule["~subjectandbody_options"]) || !checkTextMatch(body, rule["~subjectandbody"], rule["~subjectandbody_options"])) {
             logDebug(rule.verbose_logs, "Negated subject+body matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -596,7 +596,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 }
             }
 
-            if (rule.author.flair_text || rule.author.flair_css_class || rule.author.notflair_css_class) {
+            if (rule.author.flair_text || rule.author.flair_css_class || rule.author["~flair_css_class"] || rule.author["~flair_text"]) {
                 const flair = await participant.getUserFlairBySubreddit(subredditName);
                 if (!flair) {
                     logDebug(rule.verbose_logs, "User does not have flair, but flair checks exist. Skipping rule.", result.verboseLogs);
@@ -612,8 +612,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     }
                 }
 
-                if (rule.author.notflair_text) {
-                    if (!checkTextMatch(flair.flairText ?? "", rule.author.notflair_text, rule.author.notflair_text_options)) {
+                if (rule.author["~flair_text"]) {
+                    if (!checkTextMatch(flair.flairText ?? "", rule.author["~flair_text"], rule.author["~flair_text_options"])) {
                         logDebug(rule.verbose_logs, "Negated flair text matched, so rule fails", result.verboseLogs);
                         return result;
                     } else {
@@ -630,8 +630,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     }
                 }
 
-                if (rule.author.notflair_css_class) {
-                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author.notflair_css_class, rule.author.notflair_css_class_options)) {
+                if (rule.author["~flair_css_class"]) {
+                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author["~flair_css_class"], rule.author["~flair_css_class_options"])) {
                         logDebug(rule.verbose_logs, "Negated flair CSS class matched, so rule fails", result.verboseLogs);
                         return result;
                     } else {
@@ -652,9 +652,9 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 }
             }
 
-            if (context && rule.author.notsocial_links) {
+            if (context && rule.author["~social_links"]) {
                 const socialLinks = await getUserSocialLinksCached(participant, context).then(x => x.map(link => link.outboundUrl));
-                if (socialLinks.some(link => checkTextMatch(link, rule.author?.notsocial_links, rule.author?.notsocial_links_options))) {
+                if (socialLinks.some(link => checkTextMatch(link, rule.author?.["~social_links"], rule.author?.["~social_links_options"]))) {
                     logDebug(rule.verbose_logs, "Negated social links matched, so rule fails", result.verboseLogs);
                     return result;
                 } else {
@@ -672,8 +672,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
         }
 
-        if (rule.author.notname) {
-            if (!checkTextMatch(username, rule.author.notname, rule.author.notname_options)) {
+        if (rule.author["~name"]) {
+            if (!checkTextMatch(username, rule.author["~name"], rule.author["~name_options"])) {
                 logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
                 return result;
             } else {

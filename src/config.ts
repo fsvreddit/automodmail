@@ -1,3 +1,4 @@
+/* eslint-disable @stylistic/quote-props */
 /* eslint-disable camelcase */
 import { parseAllDocuments } from "yaml";
 import Ajv, { JSONSchemaType } from "ajv";
@@ -17,18 +18,18 @@ export interface ResponseRule {
     is_first_user_reply?: boolean;
     subject?: string[];
     subject_options?: SearchOption;
-    notsubject?: string[];
-    notsubject_options?: SearchOption;
+    "~subject"?: string[];
+    "~subject_options"?: SearchOption;
     body?: string[];
     body_options?: SearchOption;
-    notbody?: string[];
-    notbody_options?: SearchOption;
+    "~body"?: string[];
+    "~body_options"?: SearchOption;
     body_shorter_than?: number;
     body_longer_than?: number;
     subjectandbody?: string[];
     subjectandbody_options?: SearchOption;
-    notsubjectandbody?: string[];
-    notsubjectandbody_options?: SearchOption;
+    "~subjectandbody"?: string[];
+    "~subjectandbody_options"?: SearchOption;
     subject_shorter_than?: number;
     subject_longer_than?: number;
     moderators_exempt?: boolean;
@@ -36,12 +37,12 @@ export interface ResponseRule {
     author?: {
         name?: string[];
         name_options?: SearchOption;
-        notname?: string[];
-        notname_options?: SearchOption;
+        "~name"?: string[];
+        "~name_options"?: SearchOption;
         social_links?: string[];
         social_links_options?: SearchOption;
-        notsocial_links?: string[];
-        notsocial_links_options?: SearchOption;
+        "~social_links"?: string[];
+        "~social_links_options"?: SearchOption;
         post_karma?: string;
         comment_karma?: string;
         combined_karma?: string;
@@ -49,12 +50,12 @@ export interface ResponseRule {
         satisfy_any_threshold?: boolean;
         flair_text?: string[];
         flair_text_options?: SearchOption;
-        notflair_text?: string[];
-        notflair_text_options?: SearchOption;
+        "~flair_text"?: string[];
+        "~flair_text_options"?: SearchOption;
         flair_css_class?: string[];
         flair_css_class_options?: SearchOption;
-        notflair_css_class?: string[];
-        notflair_css_class_options?: SearchOption;
+        "~flair_css_class"?: string[];
+        "~flair_css_class_options"?: SearchOption;
         is_participant?: boolean;
         is_contributor?: boolean;
         is_moderator?: boolean;
@@ -112,8 +113,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
-            notsubject: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
-            notsubject_options: {
+            "~subject": { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+            "~subject_options": {
                 type: "object",
                 properties: {
                     search_method: { type: "string", nullable: true, enum: matchSearchMethod },
@@ -134,8 +135,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
-            notbody: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
-            notbody_options: {
+            "~body": { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+            "~body_options": {
                 type: "object",
                 properties: {
                     search_method: { type: "string", nullable: true, enum: matchSearchMethod },
@@ -158,8 +159,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                 nullable: true,
                 additionalProperties: false,
             },
-            notsubjectandbody: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
-            notsubjectandbody_options: {
+            "~subjectandbody": { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+            "~subjectandbody_options": {
                 type: "object",
                 properties: {
                     search_method: { type: "string", nullable: true, enum: matchSearchMethod },
@@ -187,8 +188,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
-                    notname: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
-                    notname_options: {
+                    "~name": { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+                    "~name_options": {
                         type: "object",
                         properties: {
                             search_method: { type: "string", nullable: true, enum: matchSearchMethod },
@@ -209,8 +210,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
-                    notsocial_links: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
-                    notsocial_links_options: {
+                    "~social_links": { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+                    "~social_links_options": {
                         type: "object",
                         properties: {
                             search_method: { type: "string", nullable: true, enum: matchSearchMethod },
@@ -236,8 +237,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
-                    notflair_text: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
-                    notflair_text_options: {
+                    "~flair_text": { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+                    "~flair_text_options": {
                         type: "object",
                         properties: {
                             search_method: { type: "string", nullable: true, enum: matchSearchMethod },
@@ -258,8 +259,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
-                    notflair_css_class: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
-                    notflair_css_class_options: {
+                    "~flair_css_class": { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+                    "~flair_css_class_options": {
                         type: "object",
                         properties: {
                             search_method: { type: "string", nullable: true, enum: matchSearchMethod },
@@ -339,10 +340,6 @@ function processNode (node: any, nodeName: string) {
     let searchOptions = matches[2] as string | undefined ?? "";
     const negate = properName.startsWith("~");
 
-    if (negate) {
-        properName = properName.replace("~", "not");
-    }
-
     let searchOptionList = searchOptions.split(",").map(x => x.trim());
     const caseSensitive = searchOptionList.includes("case-sensitive") || searchOptionList.includes("case_sensitive");
     if (caseSensitive) {
@@ -361,7 +358,7 @@ function processNode (node: any, nodeName: string) {
     }
 
     if (properName.endsWith("subject+body") || properName.endsWith("body+subject")) {
-        properName = (negate ? "not" : "") + "subjectandbody";
+        properName = (negate ? "~" : "") + "subjectandbody";
     }
 
     if (properName === nodeName && !options) {
@@ -457,9 +454,9 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.notbody && rule.notbody_options?.search_method === "regex") {
+    if (rule["~body"] && rule["~body_options"]?.search_method === "regex") {
         try {
-            rule.notbody.map(x => new RegExp(x));
+            rule["~body"].map(x => new RegExp(x));
         } catch {
             return "Invalid ~body regex";
         }
@@ -473,9 +470,9 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.notsubject && rule.notsubject_options?.search_method === "regex") {
+    if (rule["~subject"] && rule["~subject_options"]?.search_method === "regex") {
         try {
-            rule.notsubject.map(x => new RegExp(x));
+            rule["~subject"].map(x => new RegExp(x));
         } catch {
             return "Invalid ~subject regex";
         }
@@ -489,9 +486,9 @@ export function validateRule (rule: ResponseRule): string {
         }
     }
 
-    if (rule.notsubjectandbody && rule.notsubjectandbody_options?.search_method === "regex") {
+    if (rule["~subjectandbody"] && rule["~subjectandbody_options"]?.search_method === "regex") {
         try {
-            rule.notsubjectandbody.map(x => new RegExp(x));
+            rule["~subjectandbody"].map(x => new RegExp(x));
         } catch {
             return "Invalid ~subject+body regex";
         }
@@ -506,9 +503,9 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notname && rule.author.notname_options?.search_method === "regex") {
+        if (rule.author["~name"] && rule.author["~name_options"]?.search_method === "regex") {
             try {
-                rule.author.notname.map(x => new RegExp(x));
+                rule.author["~name"].map(x => new RegExp(x));
             } catch {
                 return "Invalid author ~name regex";
             }
@@ -522,9 +519,9 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notsocial_links && rule.author.notsocial_links_options?.search_method === "regex") {
+        if (rule.author["~social_links"] && rule.author["~social_links_options"]?.search_method === "regex") {
             try {
-                rule.author.notsocial_links.map(x => new RegExp(x));
+                rule.author["~social_links"].map(x => new RegExp(x));
             } catch {
                 return "Invalid author ~social_links regex";
             }
@@ -538,9 +535,9 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notflair_text && rule.author.notflair_text_options?.search_method === "regex") {
+        if (rule.author["~flair_text"] && rule.author["~flair_text_options"]?.search_method === "regex") {
             try {
-                rule.author.notflair_text.map(x => new RegExp(x));
+                rule.author["~flair_text"].map(x => new RegExp(x));
             } catch {
                 return "Invalid author ~name regex";
             }
@@ -554,9 +551,9 @@ export function validateRule (rule: ResponseRule): string {
             }
         }
 
-        if (rule.author.notflair_css_class && rule.author.notflair_css_class_options?.search_method === "regex") {
+        if (rule.author["~flair_css_class"] && rule.author["~flair_css_class_options"]?.search_method === "regex") {
             try {
-                rule.author.notflair_css_class.map(x => new RegExp(x));
+                rule.author["~flair_css_class"].map(x => new RegExp(x));
             } catch {
                 return "Invalid author ~name regex";
             }

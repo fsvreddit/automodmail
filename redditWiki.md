@@ -26,6 +26,8 @@ I personally recommend single quotes, especially where regexes are involved, unl
 
 If you need a string to start with a > character, you must enclose it in quotes because > is a special character in YAML denoting the start of a multi-line string.
 
+Modmail Automator supports a wide variety of checks on the modmail properties as well as account properties and mod actions, but all of these are optional. If you specify a rule without any checks at all, it will always match. This may be useful as a "catch all" rule (e.g. to provide a holding response with response time expectations). If you choose to do this, I recommend setting a negative priority so that all other checks can run first.
+
 ## Modmail properties
 
 `is_reply` checks to see if the message is a reply or the original message, taking a value of true or false. If this is not entered, the rule will only act on the initial message. `is_first_user_reply` works similarly, but will only handle the first reply from the user that the modmail thread is about. This can be useful to allow autoresponses once but not indefinitely.
@@ -414,6 +416,16 @@ You could use sets of rules that work together to automate approving users into 
     
         Your {{mod_action_target_kind}} was filtered by Reddit or our Automod filters, and is still in our queue for review. A mod will get to it in due course and either approve or remove it.
     archive: true
+    ---
+
+## As a holding response
+
+    ---
+    priority: -1 # Run after all other rules
+    reply: |
+        Hi {{author}},
+
+        Thanks for contacting the mod team for /r/{{subreddit}}. We usually reply within 24 hours, if you haven't heard from us within that time please feel free to reply again.
     ---
 
 # Limitations

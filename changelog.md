@@ -1,5 +1,20 @@
 ## Release History
 
+### v1.9.6
+
+- Fixes a bug that prevented the {{mod_action_target_kind}} and {{mod_action_target_permalink}} placeholders from working correctly
+- Update to latest Devvit version
+
+### v1.9.5
+
+- "banned" check now works on shadowbanned users
+
+### v1.9.4
+
+- Mute duration is now respected
+- Fixed issue parsing YAML rules if top level indent is used
+- Removed support for legacy "subject_regex" and "body_regex" rules (these were deprecated months ago).
+
 ### v1.9.2
 
 - Fixed issue with {{author}} placeholder populating mod's name on mod-triggered rules

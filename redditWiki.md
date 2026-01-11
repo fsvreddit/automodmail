@@ -26,6 +26,8 @@ I personally recommend single quotes, especially where regexes are involved, unl
 
 If you need a string to start with a > character, you must enclose it in quotes because > is a special character in YAML denoting the start of a multi-line string.
 
+Modmail Automator supports a wide variety of checks on the modmail properties as well as account properties and mod actions, but all of these are optional. If you specify a rule without any checks at all, it will always match. This may be useful as a "catch all" rule (e.g. to provide a holding response with response time expectations). If you choose to do this, I recommend setting a negative priority so that all other checks can run first.
+
 ## Modmail properties
 
 `is_reply` checks to see if the message is a reply or the original message, taking a value of true or false. If this is not entered, the rule will only act on the initial message. `is_first_user_reply` works similarly, but will only handle the first reply from the user that the modmail thread is about. This can be useful to allow autoresponses once but not indefinitely.
@@ -133,7 +135,12 @@ You can also check the account name. `name` matches the user name and supports t
     author:
         name (regex, case-sensitive): '^ThrowRA'
 
-Early versions of this app used a different check (`name_regex`) for regular expression searches. If you have this syntax is in any existing rules then these will continue to work but I recommend moving to the new syntax for simplicity.
+You can check the user's social links too:
+
+    author:
+        social_links (includes): 
+            - 'onlyfans.com'
+            - 'fansly.com'
 
 ## Mod Action checks
 
@@ -156,6 +163,8 @@ Sub properties are:
     action_reason: 'low karma'
 
 `still_in_queue`: True or false. Checks to see if a post or comment matching the mod action is still in the mod queue.
+
+`was_deleted`: True or false. Checks to see if the post or comment matching the mod action was deleted by the user after the mod action was taken.
 
 **Note**: The app will only look back through the most recent 200 mod actions that match the specified moderator name(s) and/or mod actions. As a result, mod action checks are usually only suitable for fairly recent actions especially if you have a subreddit with a busy mod log.
 
@@ -202,6 +211,8 @@ If all checks on a rule pass, there are a number of actions that can be taken: `
 
 `unban` unbans the user (if they were already banned). E.g. `unban: 'true'`.
 
+`add_modnote` adds a mod note to the user, and multi-line mod notes are supported.
+
 `approve_user` adds the user as an approved submitter (if they are not already one). E.g. `approve_user: 'true'`.
 
 You can also set a flair by adding the `set_flair` property under the `author` attribute e.g.
@@ -214,7 +225,7 @@ You can also set a flair by adding the `set_flair` property under the `author` a
 
 Properties supported for set_flair also includes `set_flair_template_id`. If override_flair is false or missing, users with existing flair won't have a new flair set.
 
-### Placeholders on replies
+### Placeholders on replies and mod notes
 
 The following placeholders are all supported:
 
@@ -222,9 +233,9 @@ The following placeholders are all supported:
 
 `{{subreddit}}` - the subreddit the modmail was sent to.
 
-`{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. Example output formats can be seen [here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
+`{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. [Example output formats can be seen here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
 
-`{{mod_action_relative_time}}` - a human readable relative date in words. Example output formats can be seen [here](https://date-fns.org/v3.6.0/docs/formatRelative). Like `{{mod_action_timestamp_to_now}}`, the output is localised.
+`{{mod_action_relative_time}}` - a human readable relative date in words. [Example output formats can be seen here](https://date-fns.org/v3.6.0/docs/formatRelative). Like `{{mod_action_timestamp_to_now}}`, the output is localised.
 
 `{{mod_action_target_permalink}}` - the link to the post or comment (if applicable) that the mod action was taken against.
 
@@ -239,6 +250,12 @@ Matching placeholders are also supported and work exactly like Automod's.
 * `{{match-2}}`, `{{match-subject-2}}`, `{{match-body-2}}` for any number higher than 1 will return the capturing group for regex searches. E.g. `{{match-2}}` returns the first capturing group from either subject or body, `{{match-body-3}}` the second from the body, and so on.
 
 Negated searches (e.g. ~subject) will not result in matching placeholder output.
+
+For mod notes specifically, the following additional placeholders are supported:
+
+* `{{mod-name}}` can be used specifically for rules triggered by subreddit moderators (e.g. mod macros).
+* `{{message-subject}}` is substituted with the subject line of the modmail conversation
+* `{{message-permalink}}` is substituted with the permalink to the modmail on new modmail
 
 ## Debug options
 
@@ -406,6 +423,16 @@ You could use sets of rules that work together to automate approving users into 
     
         Your {{mod_action_target_kind}} was filtered by Reddit or our Automod filters, and is still in our queue for review. A mod will get to it in due course and either approve or remove it.
     archive: true
+    ---
+
+## As a holding response
+
+    ---
+    priority: -1 # Run after all other rules
+    reply: |
+        Hi {{author}},
+
+        Thanks for contacting the mod team for /r/{{subreddit}}. We usually reply within 24 hours, if you haven't heard from us within that time please feel free to reply again.
     ---
 
 # Limitations

@@ -8,30 +8,11 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
-### v1.9.6
+### v1.10.0
 
-- Fixes a bug that prevented the {{mod_action_target_kind}} and {{mod_action_target_permalink}} placeholders from working correctly
-- Update to latest Devvit version
-
-### v1.9.5
-
-- "banned" check now works on shadowbanned users
-
-### v1.9.4
-
-- Mute duration is now respected
-- Fixed issue parsing YAML rules if top level indent is used
-- Removed support for legacy "subject_regex" and "body_regex" rules (these were deprecated months ago).
-
-### v1.9.2
-
-- Fixed issue with {{author}} placeholder populating mod's name on mod-triggered rules
-- Add `signoff` action, allowing signoffs to be suppressed on individual rules
-
-### v1.9.1
-
-- Add `sub_visibility` check, allowing rules to act based on whether the sub is public or private
-- Allow more than one `mod_action_type` to be specified on the same rule
-- Fix behaviour of `is_moderator` for mods without modmail permission
-- Fix bug which prevents placeholders from being applied to user flairs
-- Add `private_reply` action type
+- Add feature to allow mod notes to be added by Modmail Automator rules
+- Add ability to check a user's social links
+- Add `was_deleted` check to mod action checks
+- When setting user flair text, the existing flair CSS class is respected
+- App can now act on outgoing messages triggered by itself (e.g. when approving users)
+- Update Devvit

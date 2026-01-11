@@ -1,9 +1,9 @@
 /* eslint-disable camelcase */
-import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User } from "@devvit/public-api";
+import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
-import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
+import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays, addMinutes } from "date-fns";
 import { isBanned, isContributor, isModerator } from "devvit-helpers";
 import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
@@ -12,6 +12,7 @@ import RegexEscape from "regex-escape";
 import { AppSettings, defaultSignoff, getAllSettings } from "./settings.js";
 import markdownEscape from "markdown-escape";
 import json2md from "json2md";
+import { wasThingDeleted } from "./deletions.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -24,6 +25,7 @@ export interface RuleMatchContext {
     mute?: number;
     archive?: boolean;
     unban?: boolean;
+    add_modnote?: string;
     approve_user?: boolean;
     set_flair?: {
         override_flair?: boolean;
@@ -48,6 +50,7 @@ interface ModmailAction {
     mute?: number;
     archive?: boolean;
     unban?: boolean;
+    add_modnote?: string;
     approve_user?: boolean;
     set_flair?: {
         override_flair?: boolean;
@@ -64,14 +67,9 @@ interface ModmailAction {
  * @param context Context
  */
 export async function onModmailReceiveEvent (event: ModMail, context: TriggerContext) {
-    console.log("Received modmail trigger event.");
+    console.log(`Received modmail trigger event for ${event.conversationId}.`);
 
     if (!event.messageAuthor) {
-        return;
-    }
-
-    if (event.messageAuthor.name === context.appName) {
-        console.log("Modmail event triggered by this app. Quitting.");
         return;
     }
 
@@ -111,6 +109,11 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     const isFirstMessage = event.messageId.includes(firstMessage.id);
     const currentMessage = messagesInConversation.find(message => message.id && event.messageId.includes(message.id));
 
+    if (!isFirstMessage && event.messageAuthor.name === context.appName) {
+        console.log("Message is not the first message, and was sent by the bot. Quitting.");
+        return;
+    }
+
     if (!currentMessage) {
         console.log("Cannot find current message!");
         return;
@@ -123,12 +126,12 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const isFirstUserReply = !isFirstMessage && currentMessage.id === messagesInConversation.find(message => message.id !== firstMessage.id && message.author?.name === participantName)?.id;
 
-    const subreddit = await context.reddit.getCurrentSubreddit();
+    const subredditName = context.subredditName ?? await context.reddit.getCurrentSubredditName();
 
     const { isAdmin } = currentMessage.author;
     let isMod = false;
     if (currentMessage.author.name) {
-        isMod = await isModerator(context.reddit, subreddit.name, currentMessage.author.name);
+        isMod = await isModerator(context.reddit, subredditName, currentMessage.author.name);
     }
 
     const settings = await getAllSettings(context);
@@ -167,7 +170,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     // Sort rules by priority descending.
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     for (const rule of rules) {
-        const ruleResult = await checkRule(context, subreddit.name, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
+        const ruleResult = await checkRule(context, subredditName, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
         processedRules.push(ruleResult);
 
         if (ruleResult.ruleMatched) {
@@ -239,6 +242,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         archive: matchedRule.archive,
         mute: matchedRule.mute,
         unban: matchedRule.unban,
+        add_modnote: matchedRule.add_modnote,
         approve_user: matchedRule.approve_user,
         set_flair: matchedRule.set_flair,
         includeSignoff: matchedRule.includeSignoff,
@@ -249,7 +253,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.reply) {
-        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subreddit.name, settings);
+        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subredditName, settings);
 
         const signoff = settings.signoff ?? defaultSignoff;
         const includeSignoffForMods = settings.includeSignoffForMods;
@@ -261,7 +265,18 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.private_reply) {
-        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subreddit.name, settings);
+        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subredditName, settings);
+    }
+
+    if (matchedRule.add_modnote) {
+        action.add_modnote = applyReplyPlaceholders(matchedRule.add_modnote, matchedRule, participantName, subredditName, settings);
+        if (currentMessage.participatingAs === "moderator" && currentMessage.author.name) {
+            action.add_modnote = action.add_modnote.replaceAll("{{mod-name}}", currentMessage.author.name);
+        }
+
+        action.add_modnote = action.add_modnote.replaceAll("{{message-subject}}", conversationResponse.conversation.subject ?? "");
+
+        action.add_modnote = action.add_modnote.replaceAll("{{message-permalink}}", `https://www.reddit.com/mail/all/${conversationResponse.conversation.id.replace("ModmailConversation_", "")}`);
     }
 
     const sendAfterDelay = settings.secondsDelayBeforeSend;
@@ -278,6 +293,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 }
 
 async function actOnRule (action: ModmailAction, context: TriggerContext) {
+    const subredditName = context.subredditName ?? await context.reddit.getCurrentSubredditName();
+
     if (action.reply) {
         await context.reddit.modMail.reply({
             body: action.reply,
@@ -314,52 +331,60 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
         console.log("Conversation archived");
     }
 
-    if (action.unban || action.approve_user || action.set_flair) {
-        const subreddit = await context.reddit.getCurrentSubreddit();
+    if (action.unban) {
+        await context.reddit.unbanUser(action.username, subredditName);
+        console.log("User unbanned");
+    }
 
-        if (action.unban) {
-            await context.reddit.unbanUser(action.username, subreddit.name);
-            console.log("User unbanned");
-        }
+    if (action.approve_user) {
+        await context.reddit.approveUser(action.username, subredditName);
+        console.log("User has been added as approved user");
+    }
 
-        if (action.approve_user) {
-            await context.reddit.approveUser(action.username, subreddit.name);
-            console.log("User has been added as approved user");
-        }
+    if (action.set_flair) {
+        let canSetFlair = true;
+        let currentFlair: UserFlair | undefined;
+        if (!action.set_flair.override_flair) {
+            let user: User | undefined;
+            try {
+                user = await context.reddit.getUserByUsername(action.username);
+            } catch {
+                //
+            }
 
-        if (action.set_flair) {
-            let canSetFlair = true;
-            if (!action.set_flair.override_flair) {
-                let user: User | undefined;
-                try {
-                    user = await context.reddit.getUserByUsername(action.username);
-                } catch {
-                    //
-                }
-
-                if (user) {
-                    const currentFlair = await user.getUserFlairBySubreddit(subreddit.name);
-                    if (currentFlair?.flairText) {
-                        canSetFlair = false;
-                    }
-                } else {
+            if (user) {
+                currentFlair = await user.getUserFlairBySubreddit(subredditName);
+                if (currentFlair?.flairText) {
+                    console.log("User already has a flair, and override_flair is not set. Cannot set flair.");
                     canSetFlair = false;
                 }
-            }
-
-            if (canSetFlair) {
-                await context.reddit.setUserFlair({
-                    subredditName: subreddit.name,
-                    username: action.username,
-                    text: action.set_flair.set_flair_text,
-                    cssClass: action.set_flair.set_flair_css_class,
-                    flairTemplateId: action.set_flair.set_flair_template_id,
-                });
-                console.log("New flair set");
             } else {
-                console.log("User already has a flair, cannot set.");
+                console.log("Cannot find user to set flair for.");
+                canSetFlair = false;
             }
         }
+
+        if (canSetFlair) {
+            await context.reddit.setUserFlair({
+                subredditName,
+                username: action.username,
+                text: action.set_flair.set_flair_text,
+                cssClass: action.set_flair.set_flair_css_class ?? currentFlair?.flairCssClass,
+                flairTemplateId: action.set_flair.set_flair_template_id,
+            });
+            console.log("New flair set");
+        } else {
+            console.log("User already has a flair, cannot set.");
+        }
+    }
+
+    if (action.add_modnote) {
+        await context.reddit.addModNote({
+            subreddit: subredditName,
+            user: action.username,
+            note: action.add_modnote,
+        });
+        console.log("Mod note added");
     }
 }
 
@@ -403,6 +428,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         mute: rule.mute,
         archive: rule.archive,
         unban: rule.unban,
+        add_modnote: rule.add_modnote,
         approve_user: rule.approve_user,
         set_flair: rule.author?.set_flair,
         verboseLogs: [],
@@ -433,8 +459,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
-    if (rule.notsubject) {
-        if (!checkTextMatch(subject, rule.notsubject, rule.notsubject_options)) {
+    if (rule["~subject"]) {
+        if (!checkTextMatch(subject, rule["~subject"], rule["~subject_options"])) {
             logDebug(rule.verbose_logs, "Negated subject matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -470,8 +496,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
-    if (rule.notbody) {
-        if (!checkTextMatch(body, rule.notbody, rule.notbody_options)) {
+    if (rule["~body"]) {
+        if (!checkTextMatch(body, rule["~body"], rule["~body_options"])) {
             logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -508,8 +534,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
-    if (rule.notsubjectandbody) {
-        if (!checkTextMatch(subject, rule.notsubjectandbody, rule.notsubjectandbody_options) || !checkTextMatch(body, rule.notsubjectandbody, rule.notsubjectandbody_options)) {
+    if (rule["~subjectandbody"]) {
+        if (!checkTextMatch(subject, rule["~subjectandbody"], rule["~subjectandbody_options"]) || !checkTextMatch(body, rule["~subjectandbody"], rule["~subjectandbody_options"])) {
             logDebug(rule.verbose_logs, "Negated subject+body matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -574,7 +600,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 }
             }
 
-            if (rule.author.flair_text || rule.author.flair_css_class || rule.author.notflair_css_class) {
+            if (rule.author.flair_text || rule.author.flair_css_class || rule.author["~flair_css_class"] || rule.author["~flair_text"]) {
                 const flair = await participant.getUserFlairBySubreddit(subredditName);
                 if (!flair) {
                     logDebug(rule.verbose_logs, "User does not have flair, but flair checks exist. Skipping rule.", result.verboseLogs);
@@ -590,8 +616,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     }
                 }
 
-                if (rule.author.notflair_text) {
-                    if (!checkTextMatch(flair.flairText ?? "", rule.author.notflair_text, rule.author.notflair_text_options)) {
+                if (rule.author["~flair_text"]) {
+                    if (!checkTextMatch(flair.flairText ?? "", rule.author["~flair_text"], rule.author["~flair_text_options"])) {
                         logDebug(rule.verbose_logs, "Negated flair text matched, so rule fails", result.verboseLogs);
                         return result;
                     } else {
@@ -608,8 +634,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     }
                 }
 
-                if (rule.author.notflair_css_class) {
-                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author.notflair_css_class, rule.author.notflair_css_class_options)) {
+                if (rule.author["~flair_css_class"]) {
+                    if (!checkTextMatch(flair.flairCssClass ?? "", rule.author["~flair_css_class"], rule.author["~flair_css_class_options"])) {
                         logDebug(rule.verbose_logs, "Negated flair CSS class matched, so rule fails", result.verboseLogs);
                         return result;
                     } else {
@@ -618,6 +644,26 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 }
 
                 logDebug(rule.verbose_logs, "Flair matched.", result.verboseLogs);
+            }
+
+            if (context && rule.author.social_links) {
+                const socialLinks = await getUserSocialLinksCached(participant, context).then(x => x.map(link => link.outboundUrl));
+                if (!socialLinks.some(link => checkTextMatch(link, rule.author?.social_links, rule.author?.social_links_options))) {
+                    logDebug(rule.verbose_logs, "Social links do not match.", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "Social links matched successfully.", result.verboseLogs);
+                }
+            }
+
+            if (context && rule.author["~social_links"]) {
+                const socialLinks = await getUserSocialLinksCached(participant, context).then(x => x.map(link => link.outboundUrl));
+                if (socialLinks.some(link => checkTextMatch(link, rule.author?.["~social_links"], rule.author?.["~social_links_options"]))) {
+                    logDebug(rule.verbose_logs, "Negated social links matched, so rule fails", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "Negated social links did not match, so check passes.", result.verboseLogs);
+                }
             }
         }
 
@@ -630,8 +676,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
         }
 
-        if (rule.author.notname) {
-            if (!checkTextMatch(username, rule.author.notname, rule.author.notname_options)) {
+        if (rule.author["~name"]) {
+            if (!checkTextMatch(username, rule.author["~name"], rule.author["~name_options"])) {
                 logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
                 return result;
             } else {
@@ -716,6 +762,18 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             return result;
         } else {
             logDebug(rule.verbose_logs, `Found ${modLog.length} matching ${pluralize("entry", modLog.length)} in mod log.`, result.verboseLogs);
+        }
+
+        if (rule.mod_action.was_deleted !== undefined) {
+            for (const targetId of _.compact(modLog.map(x => x.target?.id))) {
+                const wasDeleted = await wasThingDeleted(targetId, context);
+                if (wasDeleted !== rule.mod_action.was_deleted) {
+                    logDebug(rule.verbose_logs, `Mod action ${targetId} failed deleted check.`, result.verboseLogs);
+                    modLog = modLog.filter(x => x.target?.id !== targetId);
+                } else {
+                    logDebug(rule.verbose_logs, `Mod action ${targetId} passed deleted check.`, result.verboseLogs);
+                }
+            }
         }
 
         result.modActionDate = modLog[0].createdAt;
@@ -983,4 +1041,16 @@ export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchCon
     }
 
     return applyMatchPlaceholders(replyMessage, matchedRule);
+}
+
+async function getUserSocialLinksCached (user: User, context: TriggerContext): Promise<UserSocialLink[]> {
+    const cacheKey = `user-social-links-${user.username}`;
+    const cachedLinks = await context.redis.get(cacheKey);
+    if (cachedLinks) {
+        return JSON.parse(cachedLinks) as UserSocialLink[];
+    }
+
+    const socialLinks = await user.getSocialLinks();
+    await context.redis.set(cacheKey, JSON.stringify(socialLinks), { expiration: addMinutes(new Date(), 1) });
+    return socialLinks;
 }

@@ -184,9 +184,9 @@ mute: 28
 ---`;
 
     const rules = parseRules(input);
-    expect(rules[0].notsubject).toBeDefined();
-    expect(rules[0].notsubject_options).toBeDefined();
-    expect(rules[0].notsubject_options?.negate).toBeTruthy();
+    expect(rules[0]["~subject"]).toBeDefined();
+    expect(rules[0]["~subject_options"]).toBeDefined();
+    expect(rules[0]["~subject_options"]?.negate).toBeTruthy();
 });
 
 test("Negated invalid check on rule", () => {
@@ -298,9 +298,42 @@ mute: 28
     const rules = parseRules(input);
 
     expect(rules[0].author).toBeDefined();
-    expect(rules[0].author?.notname).toEqual(["spez"]);
-    expect(rules[0].author?.notname_options).toBeDefined();
-    expect(rules[0].author?.notname_options?.negate).toBeTruthy();
+    expect(rules[0].author?.["~name"]).toEqual(["spez"]);
+    expect(rules[0].author?.["~name_options"]).toBeDefined();
+    expect(rules[0].author?.["~name_options"]?.negate).toBeTruthy();
+});
+
+test("Social links with options", () => {
+    const input = `---
+subject: Hello
+author:
+    social_links (full-exact, case_sensitive): "twitter.com/spez"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.social_links).toEqual(["twitter.com/spez"]);
+    expect(rules[0].author?.social_links_options).toBeDefined();
+    expect(rules[0].author?.social_links_options?.search_method).toEqual("full-exact");
+    expect(rules[0].author?.social_links_options?.case_sensitive).toBeTruthy();
+});
+
+test("Negated social links", () => {
+    const input = `---
+subject: Hello
+author:
+    ~social_links: "twitter.com/spez"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.["~social_links"]).toEqual(["twitter.com/spez"]);
+    expect(rules[0].author?.["~social_links_options"]).toBeDefined();
+    expect(rules[0].author?.["~social_links_options"]?.negate).toBeTruthy();
 });
 
 test("Both subject and ~subject", () => {
@@ -314,8 +347,8 @@ mute: 28
 
     expect(rules[0].subject).toEqual(["Hello"]);
     expect(rules[0].subject_options?.negate).toBeFalsy();
-    expect(rules[0].notsubject).toEqual(["Goodbye"]);
-    expect(rules[0].notsubject_options?.negate).toBeTruthy();
+    expect(rules[0]["~subject"]).toEqual(["Goodbye"]);
+    expect(rules[0]["~subject_options"]?.negate).toBeTruthy();
 });
 
 test("Both body and ~body", () => {
@@ -329,8 +362,8 @@ mute: 28
 
     expect(rules[0].body).toEqual(["Hello"]);
     expect(rules[0].body_options?.negate).toBeFalsy();
-    expect(rules[0].notbody).toEqual(["Goodbye"]);
-    expect(rules[0].notbody_options?.negate).toBeTruthy();
+    expect(rules[0]["~body"]).toEqual(["Goodbye"]);
+    expect(rules[0]["~body_options"]?.negate).toBeTruthy();
 });
 
 test("Both author name and ~name", () => {
@@ -346,8 +379,8 @@ mute: 28
     expect(rules[0].author).toBeDefined();
     expect(rules[0].author?.name).toEqual(["spez"]);
     expect(rules[0].author?.name_options?.negate).toBeFalsy();
-    expect(rules[0].author?.notname).toEqual(["PossibleCrit"]);
-    expect(rules[0].author?.notname_options?.negate).toBeTruthy();
+    expect(rules[0].author?.["~name"]).toEqual(["PossibleCrit"]);
+    expect(rules[0].author?.["~name_options"]?.negate).toBeTruthy();
 });
 
 test("Set Flair", () => {

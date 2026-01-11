@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 import { addDays, addMinutes, addMonths, addWeeks, addYears } from "date-fns";
 import { applyReplyPlaceholders, checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold, RuleMatchContext } from "./autoresponder.js";
-import { ResponseRule, parseRules } from "./config.js";
+import { parseRules } from "./config.js";
 import { AppSettings } from "./settings.js";
 
 test("Within numeric threshold less than", () => {
@@ -185,13 +185,15 @@ test("Case sensitivity on Regex, Non-matching Case insensitive", () => {
 });
 
 test("Both subject and negated subject", async () => {
-    const rule: ResponseRule = {
-        subject: ["hello"],
-        subject_options: { case_sensitive: false, negate: false, search_method: "includes" },
-        notsubject: ["goodbye"],
-        notsubject_options: { case_sensitive: false, negate: true, search_method: "includes" },
-        mute: 3,
-    };
+    const rules = `---
+subject (includes): hello
+~subject (includes): goodbye
+mute: 3
+---`;
+
+    const parsedRules = parseRules(rules);
+    expect(parsedRules.length).toEqual(1);
+    const rule = parsedRules[0];
 
     const resultNotMatching = await checkRule(undefined, "subname", rule, "hello and goodbye", "", "username");
     expect(resultNotMatching.ruleMatched).toBeFalsy();

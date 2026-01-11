@@ -1,9 +1,9 @@
 /* eslint-disable camelcase */
-import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User } from "@devvit/public-api";
+import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User, UserSocialLink } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
-import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays } from "date-fns";
+import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays, addMinutes } from "date-fns";
 import { isBanned, isContributor, isModerator } from "devvit-helpers";
 import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
@@ -641,6 +641,26 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
 
                 logDebug(rule.verbose_logs, "Flair matched.", result.verboseLogs);
             }
+
+            if (context && rule.author.social_links) {
+                const socialLinks = await getUserSocialLinksCached(participant, context).then(x => x.map(link => link.outboundUrl));
+                if (!socialLinks.some(link => checkTextMatch(link, rule.author?.social_links, rule.author?.social_links_options))) {
+                    logDebug(rule.verbose_logs, "Social links do not match.", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "Social links matched successfully.", result.verboseLogs);
+                }
+            }
+
+            if (context && rule.author.notsocial_links) {
+                const socialLinks = await getUserSocialLinksCached(participant, context).then(x => x.map(link => link.outboundUrl));
+                if (socialLinks.some(link => checkTextMatch(link, rule.author?.notsocial_links, rule.author?.notsocial_links_options))) {
+                    logDebug(rule.verbose_logs, "Negated social links matched, so rule fails", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "Negated social links did not match, so check passes.", result.verboseLogs);
+                }
+            }
         }
 
         if (rule.author.name) {
@@ -1005,4 +1025,16 @@ export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchCon
     }
 
     return applyMatchPlaceholders(replyMessage, matchedRule);
+}
+
+async function getUserSocialLinksCached (user: User, context: TriggerContext): Promise<UserSocialLink[]> {
+    const cacheKey = `user-social-links-${user.username}`;
+    const cachedLinks = await context.redis.get(cacheKey);
+    if (cachedLinks) {
+        return JSON.parse(cachedLinks) as UserSocialLink[];
+    }
+
+    const socialLinks = await user.getSocialLinks();
+    await context.redis.set(cacheKey, JSON.stringify(socialLinks), { expiration: addMinutes(new Date(), 1) });
+    return socialLinks;
 }

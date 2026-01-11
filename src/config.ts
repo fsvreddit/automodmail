@@ -38,6 +38,10 @@ export interface ResponseRule {
         name_options?: SearchOption;
         notname?: string[];
         notname_options?: SearchOption;
+        social_links?: string[];
+        social_links_options?: SearchOption;
+        notsocial_links?: string[];
+        notsocial_links_options?: SearchOption;
         post_karma?: string;
         comment_karma?: string;
         combined_karma?: string;
@@ -194,6 +198,28 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
+                    social_links: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+                    social_links_options: {
+                        type: "object",
+                        properties: {
+                            search_method: { type: "string", nullable: true, enum: matchSearchMethod },
+                            case_sensitive: { type: "boolean", nullable: true },
+                            negate: { type: "boolean", nullable: true },
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
+                    notsocial_links: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
+                    notsocial_links_options: {
+                        type: "object",
+                        properties: {
+                            search_method: { type: "string", nullable: true, enum: matchSearchMethod },
+                            case_sensitive: { type: "boolean", nullable: true },
+                            negate: { type: "boolean", nullable: true },
+                        },
+                        nullable: true,
+                        additionalProperties: false,
+                    },
                     post_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     comment_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     combined_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
@@ -303,7 +329,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function processNode (node: any, nodeName: string) {
-    const nodeNameRegex = /^(body_regex|subject_regex|~?subject|~?body|~?subject\+body|~?body\+subject|~?name|~?flair_text|~?flair_css_class|action_reason)(?: \(([\w\s,-]+)\))?$/;
+    const nodeNameRegex = /^(~?subject|~?body|~?subject\+body|~?body\+subject|~?name|~?social_links|~?flair_text|~?flair_css_class|action_reason)(?: \(([\w\s,-]+)\))?$/;
     const matches = nodeNameRegex.exec(nodeName);
     if (matches?.length !== 3) {
         return;
@@ -485,6 +511,22 @@ export function validateRule (rule: ResponseRule): string {
                 rule.author.notname.map(x => new RegExp(x));
             } catch {
                 return "Invalid author ~name regex";
+            }
+        }
+
+        if (rule.author.social_links && rule.author.social_links_options?.search_method === "regex") {
+            try {
+                rule.author.social_links.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author social_links regex";
+            }
+        }
+
+        if (rule.author.notsocial_links && rule.author.notsocial_links_options?.search_method === "regex") {
+            try {
+                rule.author.notsocial_links.map(x => new RegExp(x));
+            } catch {
+                return "Invalid author ~social_links regex";
             }
         }
 

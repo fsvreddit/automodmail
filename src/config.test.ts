@@ -303,6 +303,39 @@ mute: 28
     expect(rules[0].author?.notname_options?.negate).toBeTruthy();
 });
 
+test("Social links with options", () => {
+    const input = `---
+subject: Hello
+author:
+    social_links (full-exact, case_sensitive): "twitter.com/spez"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.social_links).toEqual(["twitter.com/spez"]);
+    expect(rules[0].author?.social_links_options).toBeDefined();
+    expect(rules[0].author?.social_links_options?.search_method).toEqual("full-exact");
+    expect(rules[0].author?.social_links_options?.case_sensitive).toBeTruthy();
+});
+
+test("Negated social links", () => {
+    const input = `---
+subject: Hello
+author:
+    ~social_links: "twitter.com/spez"
+mute: 28
+---`;
+
+    const rules = parseRules(input);
+
+    expect(rules[0].author).toBeDefined();
+    expect(rules[0].author?.notsocial_links).toEqual(["twitter.com/spez"]);
+    expect(rules[0].author?.notsocial_links_options).toBeDefined();
+    expect(rules[0].author?.notsocial_links_options?.negate).toBeTruthy();
+});
+
 test("Both subject and ~subject", () => {
     const input = `---
 subject: Hello

@@ -135,7 +135,12 @@ You can also check the account name. `name` matches the user name and supports t
     author:
         name (regex, case-sensitive): '^ThrowRA'
 
-Early versions of this app used a different check (`name_regex`) for regular expression searches. If you have this syntax is in any existing rules then these will continue to work but I recommend moving to the new syntax for simplicity.
+You can check the user's social links too:
+
+    author:
+        social_links (includes): 
+            - 'onlyfans.com'
+            - 'fansly.com'
 
 ## Mod Action checks
 

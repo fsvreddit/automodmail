@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User, UserSocialLink } from "@devvit/public-api";
+import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
@@ -343,6 +343,7 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
 
     if (action.set_flair) {
         let canSetFlair = true;
+        let currentFlair: UserFlair | undefined;
         if (!action.set_flair.override_flair) {
             let user: User | undefined;
             try {
@@ -352,11 +353,13 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
             }
 
             if (user) {
-                const currentFlair = await user.getUserFlairBySubreddit(subredditName);
+                currentFlair = await user.getUserFlairBySubreddit(subredditName);
                 if (currentFlair?.flairText) {
+                    console.log("User already has a flair, and override_flair is not set. Cannot set flair.");
                     canSetFlair = false;
                 }
             } else {
+                console.log("Cannot find user to set flair for.");
                 canSetFlair = false;
             }
         }
@@ -366,7 +369,7 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
                 subredditName,
                 username: action.username,
                 text: action.set_flair.set_flair_text,
-                cssClass: action.set_flair.set_flair_css_class,
+                cssClass: action.set_flair.set_flair_css_class ?? currentFlair?.flairCssClass,
                 flairTemplateId: action.set_flair.set_flair_template_id,
             });
             console.log("New flair set");

@@ -8,11 +8,11 @@ import { isBanned, isContributor, isModerator } from "devvit-helpers";
 import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
 import _ from "lodash";
-import RegexEscape from "regex-escape";
 import { AppSettings, defaultSignoff, getAllSettings } from "./settings.js";
 import markdownEscape from "markdown-escape";
 import json2md from "json2md";
 import { wasThingDeleted } from "./deletions.js";
+import escapeStringRegexp from "escape-string-regexp";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -932,7 +932,7 @@ export function checkTextMatch (input: string, matchText: string[] | undefined, 
                 textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).includes(normaliseCase(x, searchOptions.case_sensitive)));
                 break;
             case "includes-word":
-                textResult = matchText.find(x => new RegExp(`\\b${RegexEscape(normaliseCase(x, searchOptions.case_sensitive))}\\b`).test(normaliseCase(input, searchOptions.case_sensitive)));
+                textResult = matchText.find(x => new RegExp(`\\b${escapeStringRegexp(normaliseCase(x, searchOptions.case_sensitive))}\\b`).test(normaliseCase(input, searchOptions.case_sensitive)));
                 break;
             case "starts-with":
                 textResult = matchText.find(x => normaliseCase(input, searchOptions.case_sensitive).startsWith(normaliseCase(x, searchOptions.case_sensitive)));

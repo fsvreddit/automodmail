@@ -109,7 +109,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     const isFirstMessage = event.messageId.includes(firstMessage.id);
     const currentMessage = messagesInConversation.find(message => message.id && event.messageId.includes(message.id));
 
-    if (!isFirstMessage && event.messageAuthor.name === context.appName) {
+    if (!isFirstMessage && event.messageAuthor.name === context.appSlug) {
         console.log("Message is not the first message, and was sent by the bot. Quitting.");
         return;
     }

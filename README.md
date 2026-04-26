@@ -8,6 +8,10 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### v1.10.1
+
+- Added a user ignore list setting to app configuration so that you can ignore any messages from certain users across all rules.
+
 ### v1.10.0
 
 - Add feature to allow mod notes to be added by Modmail Automator rules

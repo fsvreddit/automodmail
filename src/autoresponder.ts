@@ -83,6 +83,15 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     await context.redis.set(redisKey, new Date().getTime().toString(), { expiration: addDays(new Date(), 1) });
 
+    const settings = await getAllSettings(context);
+    const globalUserIgnoreList = settings.globalUserIgnoreList ?? "";
+    const usersToIgnore = globalUserIgnoreList.split(",").map(user => user.trim().toLowerCase()).filter(user => user.length > 0);
+
+    if (usersToIgnore.includes(event.messageAuthor.name.toLowerCase())) {
+        console.log(`Author is in the global user ignore list. Quitting. Author: ${event.messageAuthor.name}`);
+        return;
+    }
+
     const conversationResponse = await context.reddit.modMail.getConversation({
         conversationId: event.conversationId,
     });
@@ -133,8 +142,6 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     if (currentMessage.author.name) {
         isMod = await isModerator(context.reddit, subredditName, currentMessage.author.name);
     }
-
-    const settings = await getAllSettings(context);
 
     const rulesYaml = settings.rules ?? "";
     let rules = parseRules(rulesYaml);

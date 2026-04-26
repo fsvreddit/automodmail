@@ -5,6 +5,7 @@ import { addSeconds } from "date-fns";
 
 export enum AppSettingName {
     Rules = "rules",
+    GlobalUserIgnoreList = "globalUserIgnoreList",
     BackupToWikiPage = "backupToWikiPage",
     Signoff = "signoff",
     IncludeSignoffForMods = "includeSignoffForMods",
@@ -16,6 +17,7 @@ export enum AppSettingName {
 
 export interface AppSettings {
     rules?: string;
+    globalUserIgnoreList?: string;
     backupToWikiPage: boolean;
     signoff?: string;
     includeSignoffForMods: boolean;
@@ -58,6 +60,13 @@ export const appSettings: SettingsFormField[] = [
                 }
             }
         },
+    },
+    {
+        type: "string",
+        name: AppSettingName.GlobalUserIgnoreList,
+        label: "User Ignore List",
+        helpText: "A comma-separated list of usernames that the bot will ignore. Usernames should be entered without /u/ and are not case sensitive.",
+        defaultValue: "modmail-userinfo",
     },
     {
         type: "boolean",

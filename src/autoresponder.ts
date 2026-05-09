@@ -3,7 +3,7 @@ import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User, UserFla
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
-import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addDays, addMinutes } from "date-fns";
+import { formatDistanceToNow, addSeconds, subMinutes, subHours, subDays, subWeeks, subMonths, subYears, formatRelative, addMinutes } from "date-fns";
 import { isBanned, isContributor, isModerator } from "devvit-helpers";
 import { Language, languageFromString } from "./i18n.js";
 import pluralize from "pluralize";
@@ -13,6 +13,7 @@ import markdownEscape from "markdown-escape";
 import json2md from "json2md";
 import { wasThingDeleted } from "./deletions.js";
 import escapeStringRegexp from "escape-string-regexp";
+import { hasTriggerBeenHandled } from "@fsvreddit/fsv-devvit-helpers";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -73,15 +74,10 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    // Mitigate against duplicate triggers
-    const redisKey = `alreadyprocessed~${event.messageId}`;
-    const alreadyProcessed = await context.redis.get(redisKey);
-    if (alreadyProcessed) {
+    if (await hasTriggerBeenHandled(context.redis, event.messageId)) {
         console.log(`Already processed this message. Quitting. ${event.messageId}`);
         return;
     }
-
-    await context.redis.set(redisKey, new Date().getTime().toString(), { expiration: addDays(new Date(), 1) });
 
     const settings = await getAllSettings(context);
     const globalUserIgnoreList = settings.globalUserIgnoreList ?? "";

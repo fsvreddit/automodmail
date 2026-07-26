@@ -1,7 +1,9 @@
 import { JSONObject, ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage, WikiPagePermissionLevel } from "@devvit/public-api";
+import { SchedulerJob } from "./constants.js";
 import { languageList } from "./i18n.js";
 import { parseRules } from "./config.js";
-import { addSeconds } from "date-fns";
+import { addMinutes, addSeconds } from "date-fns";
+import { hasTriggerBeenHandled } from "@fsvreddit/fsv-devvit-helpers";
 
 export enum AppSettingName {
     Rules = "rules",
@@ -47,10 +49,18 @@ export const appSettings: SettingsFormField[] = [
             try {
                 parseRules(event.value);
 
+                const jobData: JSONObject = {
+                    jobGuid: crypto.randomUUID(),
+                };
+
+                if (context.userId) {
+                    jobData.userId = context.userId;
+                }
+
                 await context.scheduler.runJob({
-                    name: "saveRulesToWikiPage",
+                    name: SchedulerJob.SaveRulesToWikiPage,
                     runAt: addSeconds(new Date(), 5),
-                    data: context.userId ? { userId: context.userId } : undefined,
+                    data: jobData,
                 });
             } catch (error) {
                 if (error instanceof Error) {
@@ -127,6 +137,12 @@ export const appSettings: SettingsFormField[] = [
 ];
 
 export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
+    const jobGuid = event.data?.jobGuid as string | undefined;
+    if (await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
+        console.warn(`Save Rules job already handled. jobGuid: ${jobGuid}`);
+        return;
+    }
+
     const settings = await getAllSettings(context);
     const currentRules = settings.rules;
     if (!currentRules || !settings.backupToWikiPage) {

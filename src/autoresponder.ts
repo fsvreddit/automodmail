@@ -14,6 +14,7 @@ import json2md from "json2md";
 import { wasThingDeleted } from "./deletions.js";
 import escapeStringRegexp from "escape-string-regexp";
 import { hasTriggerBeenHandled } from "@fsvreddit/fsv-devvit-helpers";
+import { SchedulerJob } from "./constants.js";
 
 export const numericComparatorPattern = "^(<|>|<=|>=|=)?\\s?(\\d+)$";
 export const dateComparatorPattern = "^(<|>|<=|>=)?\\s?(\\d+)\\s(minute|hour|day|week|month|year)s?$";
@@ -286,8 +287,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
         await context.scheduler.runJob({
-            name: "actOnMessageAfterDelay",
-            data: { action: JSON.stringify(action) },
+            name: SchedulerJob.ActOnMessageAfterDelay,
+            data: { action: JSON.stringify(action), jobGuid: crypto.randomUUID() },
             runAt: addSeconds(new Date(), sendAfterDelay),
         });
     } else {
@@ -392,7 +393,13 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
 }
 
 export async function actOnMessageAfterDelay (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
-    if (!event.data) {
+    const jobGuid = event.data?.jobGuid as string | undefined;
+    if (await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
+        console.warn(`Send message job already handled, quitting. jobGuid: ${jobGuid}`);
+        return;
+    }
+
+    if (!event.data?.action) {
         console.log("Scheduler job's data not assigned");
         return;
     }

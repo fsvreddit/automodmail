@@ -8,6 +8,10 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### v1.10.3
+
+- Added further mitigations against duplicate messages
+
 ### v1.10.2
 
 - Added mitigations to stop duplicate messages if the Developer Platform is having issues

@@ -1,6 +1,7 @@
 import { Devvit } from "@devvit/public-api";
 import { actOnMessageAfterDelay, onModmailReceiveEvent } from "./autoresponder.js";
 import { appSettings, saveRulesToWikiPage } from "./settings.js";
+import { SchedulerJob } from "./constants.js";
 import { handleDeletedComment, handleDeletedPost } from "./deletions.js";
 
 Devvit.addSettings(appSettings);
@@ -21,12 +22,12 @@ Devvit.addTrigger({
 });
 
 Devvit.addSchedulerJob({
-    name: "actOnMessageAfterDelay",
+    name: SchedulerJob.ActOnMessageAfterDelay,
     onRun: actOnMessageAfterDelay,
 });
 
 Devvit.addSchedulerJob({
-    name: "saveRulesToWikiPage",
+    name: SchedulerJob.SaveRulesToWikiPage,
     onRun: saveRulesToWikiPage,
 });
 

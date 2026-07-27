@@ -5,6 +5,7 @@ test("Settings interface matches enum", () => {
 
     const object: AppSettings = {
         rules: "",
+        globalUserIgnoreList: "",
         backupToWikiPage: false,
         commentString: "",
         includeSignoffForMods: false,

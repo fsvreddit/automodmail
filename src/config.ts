@@ -16,6 +16,8 @@ export interface ResponseRule {
     rule_friendly_name?: string;
     is_reply?: boolean;
     is_first_user_reply?: boolean;
+    time_since_last_new_conversation?: string;
+    time_since_last_user_message?: string;
     subject?: string[];
     subject_options?: SearchOption;
     "~subject"?: string[];
@@ -104,6 +106,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             rule_friendly_name: { type: "string", minLength: 1, nullable: true },
             is_reply: { type: "boolean", nullable: true },
             is_first_user_reply: { type: "boolean", nullable: true },
+            time_since_last_new_conversation: { type: "string", nullable: true, pattern: dateComparatorPattern },
+            time_since_last_user_message: { type: "string", nullable: true, pattern: dateComparatorPattern },
             subject: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
             subject_options: {
                 type: "object",

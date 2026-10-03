@@ -128,7 +128,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (!currentMessage) {
+    if (!currentMessage?.id) {
         console.log("Cannot find current message!");
         return;
     }
@@ -178,6 +178,15 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     const subject = conversationResponse.conversation.subject ?? "";
     const body = currentMessage.bodyMarkdown ?? "";
 
+    let mostRecentOtherConversation: Date | undefined;
+    if (conversationResponse.user?.recentConvos) {
+        const otherConvos = Object.values(conversationResponse.user.recentConvos).filter(convo => convo.date && new Date(convo.date) < new Date() && convo.id && !event.conversationId.includes(convo.id));
+        if (otherConvos.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            mostRecentOtherConversation = new Date(Math.max(...otherConvos.map(convo => new Date(convo.date!).getTime())));
+        }
+    }
+
     const processedRules: RuleMatchContext[] = [];
     // Sort rules by priority descending.
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
@@ -189,6 +198,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
             participant,
             userIsModerator: isMod,
             userIsAdmin: isAdmin,
+            mostRecentOtherConversation,
+            messagesInConversation,
+            currentMessageId: currentMessage.id,
         });
         processedRules.push(ruleResult);
 
@@ -451,6 +463,9 @@ export async function checkRule (context: TriggerContext | undefined, rule: Resp
     participant?: User;
     userIsModerator?: boolean;
     userIsAdmin?: boolean;
+    mostRecentOtherConversation?: Date;
+    messagesInConversation: MessageData[];
+    currentMessageId: string;
 }): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
@@ -481,6 +496,35 @@ export async function checkRule (context: TriggerContext | undefined, rule: Resp
     if (rule.admins_exempt !== false && opts.userIsAdmin) {
         logDebug(rule.verbose_logs, "Rule exempts admins, and user is an admin.", result.verboseLogs);
         return result;
+    }
+
+    if (rule.time_since_last_new_conversation !== undefined) {
+        if (opts.mostRecentOtherConversation && !meetsDateThreshold(opts.mostRecentOtherConversation, rule.time_since_last_new_conversation)) {
+            logDebug(rule.verbose_logs, "Time since last new conversation is too short, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Time since last new conversation is sufficient, so check passes.", result.verboseLogs);
+        }
+    }
+
+    if (rule.time_since_last_user_message !== undefined) {
+        if (opts.messagesInConversation.length === 0) {
+            logDebug(rule.verbose_logs, "No user messages in conversation, so rule fails", result.verboseLogs);
+            return result;
+        }
+
+        const mostRecentUserMessage = opts.messagesInConversation.filter(msg => msg.id !== opts.currentMessageId && msg.author?.name === opts.username).pop();
+        if (!mostRecentUserMessage?.date) {
+            logDebug(rule.verbose_logs, "No recent user message found, so rule fails", result.verboseLogs);
+            return result;
+        }
+
+        if (!meetsDateThreshold(new Date(mostRecentUserMessage.date), rule.time_since_last_user_message)) {
+            logDebug(rule.verbose_logs, "Time since last user message is too short, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Time since last user message is sufficient, so check passes.", result.verboseLogs);
+        }
     }
 
     if (rule.subject) {

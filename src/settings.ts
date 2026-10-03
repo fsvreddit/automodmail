@@ -1,4 +1,4 @@
-import { JSONObject, ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage, WikiPagePermissionLevel } from "@devvit/public-api";
+import { JSONObject, ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage } from "@devvit/public-api";
 import { SchedulerJob } from "./constants.js";
 import { languageList } from "./i18n.js";
 import { parseRules } from "./config.js";
@@ -193,7 +193,8 @@ export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject |
         await context.reddit.updateWikiPageSettings({
             listed: true,
             page: wikiPageName,
-            permLevel: WikiPagePermissionLevel.MODS_ONLY,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment
+            permLevel: 2, // MODS_ONLY
             subredditName: subreddit.name,
         });
     }

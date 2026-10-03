@@ -187,21 +187,23 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         }
     }
 
+    const ruleCheckOpts = {
+        subject,
+        body,
+        username: conversationResponse.conversation.participant.name,
+        participant,
+        userIsModerator: isMod,
+        userIsAdmin: isAdmin,
+        mostRecentOtherConversation,
+        messagesInConversation,
+        currentMessageId: currentMessage.id,
+    };
+
     const processedRules: RuleMatchContext[] = [];
     // Sort rules by priority descending.
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     for (const rule of rules) {
-        const ruleResult = await checkRule(context, rule, {
-            subject,
-            body,
-            username: conversationResponse.conversation.participant.name,
-            participant,
-            userIsModerator: isMod,
-            userIsAdmin: isAdmin,
-            mostRecentOtherConversation,
-            messagesInConversation,
-            currentMessageId: currentMessage.id,
-        });
+        const ruleResult = await checkRule(context, rule, ruleCheckOpts);
         processedRules.push(ruleResult);
 
         if (ruleResult.ruleMatched) {

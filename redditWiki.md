@@ -117,7 +117,7 @@ The app supports several other properties about users.
     author:
         flair_css_class (full-exact): 'bot'
 
-There are also five true/false checks on account properties that may be useful: `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
+There are also five true/false checks on account properties that may be useful: `is_nsfw`, `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 
     author:
         is_banned: 'true'

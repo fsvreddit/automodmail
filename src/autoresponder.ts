@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
+import { ConversationData, JSONObject, MessageData, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
@@ -63,6 +63,14 @@ interface ModmailAction {
     includeSignoff: boolean;
 }
 
+function getSortedMessages (conversation: ConversationData): MessageData[] {
+    return Object.values(conversation.messages).sort((a, b) => {
+        const dateA = new Date(a.date ?? Date.now());
+        const dateB = new Date(b.date ?? Date.now());
+        return dateA.getTime() - dateB.getTime();
+    });
+}
+
 /**
  * Handles the Devvit trigger that fires on any new Modmail Receive events.
  * @param event The trigger event
@@ -105,7 +113,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const participantName = conversationResponse.conversation.participant.name;
 
-    const messagesInConversation = Object.values(conversationResponse.conversation.messages);
+    const messagesInConversation = getSortedMessages(conversationResponse.conversation);
 
     const firstMessage = messagesInConversation[0];
     if (!firstMessage.id) {
@@ -589,6 +597,15 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                     return result;
                 }
                 logDebug(rule.verbose_logs, `Satisfy any threshold is set to ${JSON.stringify(rule.author.satisfy_any_threshold)} therefore threshold checks passed.`, result.verboseLogs);
+            }
+
+            if (rule.author.is_nsfw !== undefined) {
+                if (rule.author.is_nsfw !== participant.nsfw) {
+                    logDebug(rule.verbose_logs, "NSFW check failed, skipping rule.", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "NSFW check passed.", result.verboseLogs);
+                }
             }
 
             if (context && rule.author.is_contributor !== undefined) {

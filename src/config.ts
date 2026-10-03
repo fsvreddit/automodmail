@@ -56,6 +56,7 @@ export interface ResponseRule {
         flair_css_class_options?: SearchOption;
         "~flair_css_class"?: string[];
         "~flair_css_class_options"?: SearchOption;
+        is_nsfw?: boolean;
         is_participant?: boolean;
         is_contributor?: boolean;
         is_moderator?: boolean;
@@ -271,6 +272,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
+                    is_nsfw: { type: "boolean", nullable: true },
                     is_participant: { type: "boolean", nullable: true },
                     is_contributor: { type: "boolean", nullable: true },
                     is_moderator: { type: "boolean", nullable: true },

@@ -8,6 +8,11 @@ Modmail Automator is open source. You can find it on Github [here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### Next version
+
+* Add `is_nsfw` check within the `author` property
+* Add `time_since_last_new_conversation` and `time_since_last_user_message` checks
+
 ### v1.10.3
 
 - Added further mitigations against duplicate messages

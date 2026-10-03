@@ -65,6 +65,14 @@ Note: This app uses Javascript regex syntax, not Python. Avoid using double quot
 
 Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case-sensitive)`).
 
+## Recent modmail checks
+
+You can choose to apply rules based on other activity from the user in other conversations or the current conversation.
+
+`time_since_last_new_conversation` allows you to check the time period since the last conversation - e.g. you may wish to prevent users from creating multiple new modmails during a short period. Example: `time_since_last_new_conversation: '< 5 minutes'`
+
+`time_since_last_user_message` allows you to check the time period since the last message within the *same* conversation. For example, `time_since_last_user_message: '< 30 seconds'`.
+
 ## Account properties
 
 Account properties come under the `author` value, just like in AutoModerator. Two broad categories (threshold checks and other account properties) are supported, and both can be specified in the same rule.
@@ -120,7 +128,10 @@ The app supports several other properties about users.
 There are also five true/false checks on account properties that may be useful: `is_nsfw`, `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 
     author:
-        is_banned: 'true'
+        is_banned: true
+
+    author:
+        is_nsfw: true
 
 The 'participant' is the user who the modmail thread is about. Most rules will never need to check this value, but it may be useful if you want to define rules that act on replies to previous modmails.
 

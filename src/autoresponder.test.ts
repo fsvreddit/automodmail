@@ -195,11 +195,11 @@ mute: 3
     expect(parsedRules.length).toEqual(1);
     const rule = parsedRules[0];
 
-    const resultNotMatching = await checkRule(undefined, "subname", rule, "hello and goodbye", "", "username");
+    const resultNotMatching = await checkRule(undefined, rule, { subject: "hello and goodbye", body: "", username: "username" });
     expect(resultNotMatching.ruleMatched).toBeFalsy();
     expect(resultNotMatching.mute).toEqual(3);
 
-    const resultMatching = await checkRule(undefined, "subname", rule, "hello and greetings", "", "username");
+    const resultMatching = await checkRule(undefined, rule, { subject: "hello and greetings", body: "", username: "username" });
     expect(resultMatching.ruleMatched).toBeTruthy();
     expect(resultMatching.mute).toEqual(3);
 });
@@ -220,7 +220,7 @@ reply: |
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "Verification Request", "this is a test", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "Verification Request", body: "this is a test", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -236,7 +236,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "This is a test", "message body", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "This is a test", body: "message body", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -252,7 +252,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "this is a test", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "this is a test", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -268,7 +268,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "this is a test", "this is a test", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "this is a test", body: "this is a test", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -284,7 +284,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "message body", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "message body", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -300,7 +300,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "This is a test", "message body", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "This is a test", body: "message body", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -316,7 +316,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "this is a test", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "this is a test", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -332,7 +332,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "this is a test", "this is a test", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "this is a test", body: "this is a test", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -348,7 +348,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, "testsub", rule, "message subject", "message body", "username", undefined, false, false);
+    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "message body", username: "username" });
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -363,10 +363,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, "testsub", rule, "message subject", "a", "username", undefined, false, false);
+    const ruleResult1 = await checkRule(undefined, rule, { subject: "message subject", body: "a", username: "username" });
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, "testsub", rule, "message subject", "abcdef", "username", undefined, false, false);
+    const ruleResult2 = await checkRule(undefined, rule, { subject: "message subject", body: "abcdef", username: "username" });
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 
@@ -380,10 +380,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, "testsub", rule, "message subject", "abcdef", "username", undefined, false, false);
+    const ruleResult1 = await checkRule(undefined, rule, { subject: "message subject", body: "abcdef", username: "username" });
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, "testsub", rule, "message subject", "a", "username", undefined, false, false);
+    const ruleResult2 = await checkRule(undefined, rule, { subject: "message subject", body: "a", username: "username" });
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 
@@ -397,10 +397,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, "testsub", rule, "a", "message body", "username", undefined, false, false);
+    const ruleResult1 = await checkRule(undefined, rule, { subject: "a", body: "message body", username: "username" });
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, "testsub", rule, "abcdef", "message body", "username", undefined, false, false);
+    const ruleResult2 = await checkRule(undefined, rule, { subject: "abcdef", body: "message body", username: "username" });
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 
@@ -414,10 +414,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, "testsub", rule, "abcdef", "message body", "username", undefined, false, false);
+    const ruleResult1 = await checkRule(undefined, rule, { subject: "abcdef", body: "message body", username: "username" });
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, "testsub", rule, "a", "message body", "username", undefined, false, false);
+    const ruleResult2 = await checkRule(undefined, rule, { subject: "a", body: "message body", username: "username" });
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 

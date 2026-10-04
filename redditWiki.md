@@ -85,7 +85,7 @@ Author checks apply to the user that the modmail thread is about, not the person
 
 The tool supports several threshold checks: `post_karma`, `comment_karma`, `combined_karma`, `post_subreddit_karma`, `comment_subreddit_karma`, `combined_subreddit_karma` and `account_age`. Due to limitations of the Community Apps platform, it is not possible to include subreddit karma checks.
 
-`post_karma`, `comment_karma`, `combined_karma` can have numeric comparators specified, not just exact values. For example, the following are all valid:
+The karma threshold checks can have numeric comparators specified, not just exact values. For example, the following are all valid:
 
     author:
         post_karma: '< 100'
@@ -125,7 +125,7 @@ The app supports several other properties about users.
     author:
         flair_css_class (full-exact): 'bot'
 
-There are also five true/false checks on account properties that may be useful: `is_nsfw`, `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
+There are also six true/false checks on account properties that may be useful: `is_nsfw`, `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 
     author:
         is_banned: true

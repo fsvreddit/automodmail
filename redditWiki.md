@@ -83,7 +83,7 @@ Author checks apply to the user that the modmail thread is about, not the person
 
 ### Threshold checks
 
-The tool supports four threshold checks: `post_karma`, `comment_karma`, `combined_karma`, `post_subreddit_karma`, `comment_subreddit_karma`, `combined_subreddit_karma` and `account_age`. Due to limitations of the Community Apps platform, it is not possible to include subreddit karma checks.
+The tool supports several threshold checks: `post_karma`, `comment_karma`, `combined_karma`, `post_subreddit_karma`, `comment_subreddit_karma`, `combined_subreddit_karma` and `account_age`. Due to limitations of the Community Apps platform, it is not possible to include subreddit karma checks.
 
 `post_karma`, `comment_karma`, `combined_karma` can have numeric comparators specified, not just exact values. For example, the following are all valid:
 

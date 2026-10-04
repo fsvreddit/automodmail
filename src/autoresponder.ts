@@ -518,7 +518,12 @@ export async function checkRule (context: TriggerContext | undefined, rule: Resp
     }
 
     if (rule.time_since_last_new_conversation !== undefined) {
-        if (opts.mostRecentOtherConversation && !meetsDateThreshold(opts.mostRecentOtherConversation, rule.time_since_last_new_conversation)) {
+        if (!opts.mostRecentOtherConversation) {
+            logDebug(rule.verbose_logs, "No recent other conversation found, so rule fails", result.verboseLogs);
+            return result;
+        }
+
+        if (!meetsDateThreshold(opts.mostRecentOtherConversation, rule.time_since_last_new_conversation)) {
             logDebug(rule.verbose_logs, "Time since last new conversation is too short, so rule fails", result.verboseLogs);
             return result;
         } else {

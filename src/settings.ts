@@ -1,4 +1,4 @@
-import { JSONObject, ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage } from "@devvit/public-api";
+import { ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage } from "@devvit/public-api";
 import { SchedulerJob } from "./constants.js";
 import { languageList } from "./i18n.js";
 import { parseRules } from "./config.js";
@@ -49,18 +49,13 @@ export const appSettings: SettingsFormField[] = [
             try {
                 parseRules(event.value);
 
-                const jobData: JSONObject = {
-                    jobGuid: crypto.randomUUID(),
-                };
-
-                if (context.userId) {
-                    jobData.userId = context.userId;
-                }
-
-                await context.scheduler.runJob({
+                await context.scheduler.runJob<SaveRulesToWikiPageJobData>({
                     name: SchedulerJob.SaveRulesToWikiPage,
                     runAt: addSeconds(new Date(), 5),
-                    data: jobData,
+                    data: {
+                        jobGuid: crypto.randomUUID(),
+                        userId: context.userId,
+                    },
                 });
             } catch (error) {
                 if (error instanceof Error) {
@@ -136,10 +131,14 @@ export const appSettings: SettingsFormField[] = [
     },
 ];
 
-export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
-    const jobGuid = event.data?.jobGuid as string | undefined;
-    if (await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
-        console.warn(`Save Rules job already handled. jobGuid: ${jobGuid}`);
+type SaveRulesToWikiPageJobData = {
+    jobGuid: string;
+    userId?: string;
+};
+
+export async function saveRulesToWikiPage (event: ScheduledJobEvent<SaveRulesToWikiPageJobData>, context: TriggerContext) {
+    if (await hasTriggerBeenHandled(context.redis, `job:${event.data.jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
+        console.warn(`Save Rules job already handled. jobGuid: ${event.data.jobGuid}`);
         return;
     }
 
@@ -165,11 +164,10 @@ export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject |
     }
 
     let reason: string | undefined;
-    const userId = event.data?.userId as string | undefined;
-    if (userId) {
+    if (event.data.userId) {
         let user: User | undefined;
         try {
-            user = await context.reddit.getUserById(userId);
+            user = await context.reddit.getUserById(event.data.userId);
         } catch {
             //
         }

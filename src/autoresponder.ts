@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { ConversationData, JSONObject, MessageData, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
+import { ConversationData, MessageData, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
@@ -324,7 +324,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     const sendAfterDelay = settings.secondsDelayBeforeSend;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
-        await context.scheduler.runJob({
+        await context.scheduler.runJob<ActOnMessageAfterDelayJobData>({
             name: SchedulerJob.ActOnMessageAfterDelay,
             data: { action: JSON.stringify(action), jobGuid: crypto.randomUUID() },
             runAt: addSeconds(new Date(), sendAfterDelay),
@@ -430,20 +430,19 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
     }
 }
 
-export async function actOnMessageAfterDelay (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
-    const jobGuid = event.data?.jobGuid as string | undefined;
+type ActOnMessageAfterDelayJobData = {
+    jobGuid: string;
+    action: string;
+};
+
+export async function actOnMessageAfterDelay (event: ScheduledJobEvent<ActOnMessageAfterDelayJobData>, context: TriggerContext) {
+    const jobGuid = event.data.jobGuid;
     if (await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
         console.warn(`Send message job already handled, quitting. jobGuid: ${jobGuid}`);
         return;
     }
 
-    if (!event.data?.action) {
-        console.log("Scheduler job's data not assigned");
-        return;
-    }
-
-    const actionVal = event.data.action as string;
-    const action = JSON.parse(actionVal) as ModmailAction;
+    const action = JSON.parse(event.data.action) as ModmailAction;
     await actOnRule(action, context);
 }
 

@@ -240,9 +240,11 @@ Properties supported for set_flair also includes `set_flair_template_id`. If ove
 
 The following placeholders are all supported:
 
-`{{author}}` - the username for the user writing in, without the leading /u/
+`{{author}}` - the username for the user writing in.
 
 `{{subreddit}}` - the subreddit the modmail was sent to.
+
+`{{flair_text}}` - the user's *current* flair text, if assigned.
 
 `{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. [Example output formats can be seen here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
 

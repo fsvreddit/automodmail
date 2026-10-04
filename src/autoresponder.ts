@@ -289,8 +289,11 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         action.set_flair.set_flair_text = applyMatchPlaceholders(action.set_flair.set_flair_text, matchedRule);
     }
 
+    let userFlair: UserFlair | undefined;
+
     if (matchedRule.reply) {
-        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subredditName, settings);
+        userFlair ??= await participant?.getUserFlairBySubreddit(subredditName);
+        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subredditName, userFlair?.flairText ?? "", settings);
 
         const signoff = settings.signoff ?? defaultSignoff;
         const includeSignoffForMods = settings.includeSignoffForMods;
@@ -302,11 +305,13 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.private_reply) {
-        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subredditName, settings);
+        userFlair ??= await participant?.getUserFlairBySubreddit(subredditName);
+        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subredditName, userFlair?.flairText ?? "", settings);
     }
 
     if (matchedRule.add_modnote) {
-        action.add_modnote = applyReplyPlaceholders(matchedRule.add_modnote, matchedRule, participantName, subredditName, settings);
+        userFlair ??= await participant?.getUserFlairBySubreddit(subredditName);
+        action.add_modnote = applyReplyPlaceholders(matchedRule.add_modnote, matchedRule, participantName, subredditName, userFlair?.flairText ?? "", settings);
         if (currentMessage.participatingAs === "moderator" && currentMessage.author.name) {
             action.add_modnote = action.add_modnote.replaceAll("{{mod-name}}", currentMessage.author.name);
         }
@@ -1132,7 +1137,7 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
     return thingToMatch[index];
 }
 
-export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, username: string, subredditName: string, settings: AppSettings): string {
+export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, username: string, subredditName: string, flairText: string, settings: AppSettings): string {
     let replyMessage = input;
 
     replyMessage = replyMessage.replaceAll("u/{{author}}", markdownEscape(username));
@@ -1160,6 +1165,8 @@ export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchCon
 
         replyMessage = replyMessage.replaceAll("{{mod_action_target_kind}}", targetKind);
     }
+
+    replyMessage = replyMessage.replaceAll("{{flair_text}}", markdownEscape(flairText));
 
     return applyMatchPlaceholders(replyMessage, matchedRule);
 }

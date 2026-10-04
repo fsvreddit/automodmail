@@ -473,8 +473,8 @@ test("applyReplyPlaceholders works correctly for target kind and permalink", () 
         postString: "",
     };
 
-    const output1 = applyReplyPlaceholders(input1, ruleMatchContext, "testuser", "testsubreddit", settings);
-    const output2 = applyReplyPlaceholders(input2, ruleMatchContext, "testuser", "testsubreddit", settings);
+    const output1 = applyReplyPlaceholders(input1, ruleMatchContext, "testuser", "testsubreddit", "", settings);
+    const output2 = applyReplyPlaceholders(input2, ruleMatchContext, "testuser", "testsubreddit", "", settings);
 
     expect(output1).toEqual("post");
     expect(output2).toEqual("https://reddit.com/r/example/comments/abc123/example_post/");

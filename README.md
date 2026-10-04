@@ -13,6 +13,7 @@ For older releases please see the [full change log](https://github.com/fsvreddit
 - Add `is_nsfw` check within the `author` property
 - Add `post_subreddit_karma`, `comment_subreddit_karma` and `combined_subreddit_karma` checks within the `author` property
 - Add `time_since_last_new_conversation` and `time_since_last_user_message` checks
+- Fix output of {{author}} and {{subreddit}} placeholders if u/ or r/ are prepended
 
 ### v1.10.3
 

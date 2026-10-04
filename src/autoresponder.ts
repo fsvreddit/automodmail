@@ -1135,8 +1135,11 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
 export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
     let replyMessage = input;
 
+    replyMessage = replyMessage.replaceAll("u/{{author}}", markdownEscape(userName));
     replyMessage = replyMessage.replaceAll("{{author}}", markdownEscape(userName));
+    replyMessage = replyMessage.replaceAll("r/{{subreddit}}", markdownEscape(subredditName));
     replyMessage = replyMessage.replaceAll("{{subreddit}}", markdownEscape(subredditName));
+
     let language: Language | undefined;
     if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
         language = languageFromString(settings.locale[0]);

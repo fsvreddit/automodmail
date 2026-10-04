@@ -1132,11 +1132,11 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
     return thingToMatch[index];
 }
 
-export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
+export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, username: string, subredditName: string, settings: AppSettings): string {
     let replyMessage = input;
 
-    replyMessage = replyMessage.replaceAll("u/{{author}}", markdownEscape(userName));
-    replyMessage = replyMessage.replaceAll("{{author}}", markdownEscape(userName));
+    replyMessage = replyMessage.replaceAll("u/{{author}}", markdownEscape(username));
+    replyMessage = replyMessage.replaceAll("{{author}}", markdownEscape(username));
     replyMessage = replyMessage.replaceAll("r/{{subreddit}}", markdownEscape(subredditName));
     replyMessage = replyMessage.replaceAll("{{subreddit}}", markdownEscape(subredditName));
 

@@ -48,6 +48,9 @@ export interface ResponseRule {
         post_karma?: string;
         comment_karma?: string;
         combined_karma?: string;
+        post_subreddit_karma?: string;
+        comment_subreddit_karma?: string;
+        combined_subreddit_karma?: string;
         account_age?: string;
         satisfy_any_threshold?: boolean;
         flair_text?: string[];
@@ -230,6 +233,9 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     post_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     comment_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     combined_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
+                    post_subreddit_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
+                    comment_subreddit_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
+                    combined_subreddit_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     account_age: { type: "string", nullable: true, pattern: dateComparatorPattern },
                     satisfy_any_threshold: { type: "boolean", nullable: true },
                     flair_text: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },

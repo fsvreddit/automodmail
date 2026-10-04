@@ -1,9 +1,37 @@
 /* eslint-disable vitest/no-conditional-expect */
 /* eslint-disable camelcase */
 import { addDays, addMinutes, addMonths, addWeeks, addYears } from "date-fns";
-import { applyReplyPlaceholders, checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold, RuleMatchContext } from "./autoresponder.js";
+import { applyReplyPlaceholders, checkRule, checkTextMatch, meetsDateThreshold, meetsNumericThreshold, RuleMatchContext, type CheckRuleOptions } from "./autoresponder.js";
 import { parseRules } from "./config.js";
 import { AppSettings } from "./settings.js";
+
+function createCheckRuleOptions ({
+    subject = "",
+    body = "",
+    username = "",
+    participant,
+    userIsModerator = false,
+    userIsAdmin = false,
+    mostRecentOtherConversation,
+    messagesInConversation = [],
+    currentMessageId = "",
+    subPostKarma = 0,
+    subCommentKarma = 0,
+}: Partial<CheckRuleOptions> = {}): CheckRuleOptions {
+    return {
+        subject,
+        body,
+        username,
+        participant,
+        userIsModerator,
+        userIsAdmin,
+        mostRecentOtherConversation,
+        messagesInConversation,
+        currentMessageId,
+        subPostKarma,
+        subCommentKarma,
+    };
+}
 
 test("Within numeric threshold less than", () => {
     const result = meetsNumericThreshold(5, "< 10");
@@ -195,11 +223,11 @@ mute: 3
     expect(parsedRules.length).toEqual(1);
     const rule = parsedRules[0];
 
-    const resultNotMatching = await checkRule(undefined, rule, { subject: "hello and goodbye", body: "", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const resultNotMatching = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "hello and goodbye" }));
     expect(resultNotMatching.ruleMatched).toBeFalsy();
     expect(resultNotMatching.mute).toEqual(3);
 
-    const resultMatching = await checkRule(undefined, rule, { subject: "hello and greetings", body: "", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const resultMatching = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "hello and greetings" }));
     expect(resultMatching.ruleMatched).toBeTruthy();
     expect(resultMatching.mute).toEqual(3);
 });
@@ -220,7 +248,7 @@ reply: |
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "Verification Request", body: "this is a test", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "Verification Request", body: "this is a test" }));
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -236,7 +264,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "This is a test", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "This is a test", body: "message body" }));
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -252,7 +280,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "this is a test", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "this is a test" }));
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -268,7 +296,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "this is a test", body: "this is a test", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "this is a test", body: "this is a test" }));
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -284,7 +312,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "message body" }));
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -300,7 +328,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "This is a test", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "This is a test", body: "message body" }));
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -316,7 +344,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "this is a test", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "this is a test" }));
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -332,7 +360,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "this is a test", body: "this is a test", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "this is a test", body: "this is a test" }));
 
     expect(ruleResult.ruleMatched).toBeFalsy();
 });
@@ -348,7 +376,7 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult = await checkRule(undefined, rule, { subject: "message subject", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "message body" }));
 
     expect(ruleResult.ruleMatched).toBeTruthy();
 });
@@ -363,10 +391,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, rule, { subject: "message subject", body: "a", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult1 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "a" }));
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, rule, { subject: "message subject", body: "abcdef", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult2 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "abcdef" }));
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 
@@ -380,10 +408,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, rule, { subject: "message subject", body: "abcdef", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult1 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "abcdef" }));
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, rule, { subject: "message subject", body: "a", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult2 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "message subject", body: "a" }));
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 
@@ -397,10 +425,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, rule, { subject: "a", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult1 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "a", body: "message body" }));
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, rule, { subject: "abcdef", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult2 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "abcdef", body: "message body" }));
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 
@@ -414,10 +442,10 @@ mute: 28
     expect(parsedRules.length).toEqual(1);
 
     const rule = parsedRules[0];
-    const ruleResult1 = await checkRule(undefined, rule, { subject: "abcdef", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult1 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "abcdef", body: "message body" }));
     expect(ruleResult1.ruleMatched).toBeTruthy();
 
-    const ruleResult2 = await checkRule(undefined, rule, { subject: "a", body: "message body", username: "username", mostRecentOtherConversation: undefined, messagesInConversation: [], currentMessageId: "" });
+    const ruleResult2 = await checkRule(undefined, rule, createCheckRuleOptions({ subject: "a", body: "message body" }));
     expect(ruleResult2.ruleMatched).toBeFalsy();
 });
 

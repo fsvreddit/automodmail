@@ -187,7 +187,9 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         }
     }
 
-    const ruleCheckOpts = {
+    const subKarma = await context.reddit.getUserKarmaFromCurrentSubreddit(conversationResponse.conversation.participant.name);
+
+    const ruleCheckOpts: CheckRuleOptions = {
         subject,
         body,
         username: conversationResponse.conversation.participant.name,
@@ -196,6 +198,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         userIsAdmin: isAdmin,
         mostRecentOtherConversation,
         messagesInConversation,
+        subPostKarma: subKarma.fromPosts ?? 0,
+        subCommentKarma: subKarma.fromComments ?? 0,
         currentMessageId: currentMessage.id,
     };
 
@@ -448,6 +452,20 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
     }
 }
 
+export interface CheckRuleOptions {
+    subject: string;
+    body: string;
+    username: string;
+    participant?: User;
+    userIsModerator?: boolean;
+    userIsAdmin?: boolean;
+    mostRecentOtherConversation?: Date;
+    messagesInConversation: MessageData[];
+    currentMessageId: string;
+    subPostKarma: number;
+    subCommentKarma: number;
+}
+
 /**
  * Checks if a rule matches the modmail contents and user/modlog context
  * @param context Reddit TriggerContext object
@@ -458,17 +476,7 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-export async function checkRule (context: TriggerContext | undefined, rule: ResponseRule, opts: {
-    subject: string;
-    body: string;
-    username: string;
-    participant?: User;
-    userIsModerator?: boolean;
-    userIsAdmin?: boolean;
-    mostRecentOtherConversation?: Date;
-    messagesInConversation: MessageData[];
-    currentMessageId: string;
-}): Promise<RuleMatchContext> {
+export async function checkRule (context: TriggerContext | undefined, rule: ResponseRule, opts: CheckRuleOptions): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -632,16 +640,37 @@ export async function checkRule (context: TriggerContext | undefined, rule: Resp
                 logDebug(rule.verbose_logs, `Post karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
                 thresholdChecks.push(thresholdMatched);
             }
+
             if (rule.author.comment_karma) {
                 const thresholdMatched = meetsNumericThreshold(opts.participant.commentKarma, rule.author.comment_karma);
                 logDebug(rule.verbose_logs, `Comment karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
                 thresholdChecks.push(thresholdMatched);
             }
+
             if (rule.author.combined_karma) {
                 const thresholdMatched = meetsNumericThreshold(opts.participant.linkKarma + opts.participant.commentKarma, rule.author.combined_karma);
                 logDebug(rule.verbose_logs, `Combined karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
                 thresholdChecks.push(thresholdMatched);
             }
+
+            if (rule.author.post_subreddit_karma) {
+                const thresholdMatched = meetsNumericThreshold(opts.subPostKarma, rule.author.post_subreddit_karma);
+                logDebug(rule.verbose_logs, `Post subreddit karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
+                thresholdChecks.push(thresholdMatched);
+            }
+
+            if (rule.author.comment_subreddit_karma) {
+                const thresholdMatched = meetsNumericThreshold(opts.subCommentKarma, rule.author.comment_subreddit_karma);
+                logDebug(rule.verbose_logs, `Comment subreddit karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
+                thresholdChecks.push(thresholdMatched);
+            }
+
+            if (rule.author.combined_subreddit_karma) {
+                const thresholdMatched = meetsNumericThreshold(opts.subPostKarma + opts.subCommentKarma, rule.author.combined_subreddit_karma);
+                logDebug(rule.verbose_logs, `Combined subreddit karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
+                thresholdChecks.push(thresholdMatched);
+            }
+
             if (rule.author.account_age) {
                 const thresholdMatched = meetsDateThreshold(opts.participant.createdAt, rule.author.account_age);
                 logDebug(rule.verbose_logs, `Account age threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);

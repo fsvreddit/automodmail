@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { JSONObject, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
+import { ConversationData, MessageData, ModAction, ScheduledJobEvent, TriggerContext, User, UserFlair, UserSocialLink } from "@devvit/public-api";
 import { ModMail } from "@devvit/protos";
 import { isCommentId, isLinkId } from "@devvit/public-api/types/tid.js";
 import { ResponseRule, SearchOption, parseRules } from "./config.js";
@@ -63,6 +63,14 @@ interface ModmailAction {
     includeSignoff: boolean;
 }
 
+function getSortedMessages (conversation: ConversationData): MessageData[] {
+    return Object.values(conversation.messages).sort((a, b) => {
+        const dateA = new Date(a.date ?? Date.now());
+        const dateB = new Date(b.date ?? Date.now());
+        return dateA.getTime() - dateB.getTime();
+    });
+}
+
 /**
  * Handles the Devvit trigger that fires on any new Modmail Receive events.
  * @param event The trigger event
@@ -105,7 +113,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
 
     const participantName = conversationResponse.conversation.participant.name;
 
-    const messagesInConversation = Object.values(conversationResponse.conversation.messages);
+    const messagesInConversation = getSortedMessages(conversationResponse.conversation);
 
     const firstMessage = messagesInConversation[0];
     if (!firstMessage.id) {
@@ -120,7 +128,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         return;
     }
 
-    if (!currentMessage) {
+    if (!currentMessage?.id) {
         console.log("Cannot find current message!");
         return;
     }
@@ -170,11 +178,41 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     const subject = conversationResponse.conversation.subject ?? "";
     const body = currentMessage.bodyMarkdown ?? "";
 
+    let mostRecentOtherConversation: Date | undefined;
+    if (conversationResponse.user?.recentConvos) {
+        const otherConvos = Object.values(conversationResponse.user.recentConvos).filter(convo => convo.date && new Date(convo.date) < new Date() && convo.id && !event.conversationId.includes(convo.id));
+        if (otherConvos.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            mostRecentOtherConversation = new Date(Math.max(...otherConvos.map(convo => new Date(convo.date!).getTime())));
+        }
+    }
+
+    let subKarma: { fromPosts?: number; fromComments?: number } | undefined;
+    try {
+        subKarma = await context.reddit.getUserKarmaFromCurrentSubreddit(conversationResponse.conversation.participant.name);
+    } catch {
+        console.log(`Failed to get subreddit karma for user: ${conversationResponse.conversation.participant.name}`);
+    }
+
+    const ruleCheckOpts: CheckRuleOptions = {
+        subject,
+        body,
+        username: conversationResponse.conversation.participant.name,
+        participant,
+        userIsModerator: isMod,
+        userIsAdmin: isAdmin,
+        mostRecentOtherConversation,
+        messagesInConversation,
+        subPostKarma: subKarma?.fromPosts ?? 0,
+        subCommentKarma: subKarma?.fromComments ?? 0,
+        currentMessageId: currentMessage.id,
+    };
+
     const processedRules: RuleMatchContext[] = [];
     // Sort rules by priority descending.
     rules.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     for (const rule of rules) {
-        const ruleResult = await checkRule(context, subredditName, rule, subject, body, conversationResponse.conversation.participant.name, participant, isMod, isAdmin);
+        const ruleResult = await checkRule(context, rule, ruleCheckOpts);
         processedRules.push(ruleResult);
 
         if (ruleResult.ruleMatched) {
@@ -256,8 +294,11 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         action.set_flair.set_flair_text = applyMatchPlaceholders(action.set_flair.set_flair_text, matchedRule);
     }
 
+    let userFlair: UserFlair | undefined;
+
     if (matchedRule.reply) {
-        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subredditName, settings);
+        userFlair ??= await participant?.getUserFlairBySubreddit(subredditName);
+        let replyMessage = applyReplyPlaceholders(matchedRule.reply, matchedRule, participantName, subredditName, userFlair?.flairText ?? "", settings);
 
         const signoff = settings.signoff ?? defaultSignoff;
         const includeSignoffForMods = settings.includeSignoffForMods;
@@ -269,11 +310,13 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     }
 
     if (matchedRule.private_reply) {
-        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subredditName, settings);
+        userFlair ??= await participant?.getUserFlairBySubreddit(subredditName);
+        action.private_reply = applyReplyPlaceholders(matchedRule.private_reply, matchedRule, participantName, subredditName, userFlair?.flairText ?? "", settings);
     }
 
     if (matchedRule.add_modnote) {
-        action.add_modnote = applyReplyPlaceholders(matchedRule.add_modnote, matchedRule, participantName, subredditName, settings);
+        userFlair ??= await participant?.getUserFlairBySubreddit(subredditName);
+        action.add_modnote = applyReplyPlaceholders(matchedRule.add_modnote, matchedRule, participantName, subredditName, userFlair?.flairText ?? "", settings);
         if (currentMessage.participatingAs === "moderator" && currentMessage.author.name) {
             action.add_modnote = action.add_modnote.replaceAll("{{mod-name}}", currentMessage.author.name);
         }
@@ -286,7 +329,7 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
     const sendAfterDelay = settings.secondsDelayBeforeSend;
     if (sendAfterDelay) {
         console.log(`Delayed action enabled. Will action modmail in ${sendAfterDelay} ${pluralize("second", sendAfterDelay)}`);
-        await context.scheduler.runJob({
+        await context.scheduler.runJob<ActOnMessageAfterDelayJobData>({
             name: SchedulerJob.ActOnMessageAfterDelay,
             data: { action: JSON.stringify(action), jobGuid: crypto.randomUUID() },
             runAt: addSeconds(new Date(), sendAfterDelay),
@@ -392,20 +435,19 @@ async function actOnRule (action: ModmailAction, context: TriggerContext) {
     }
 }
 
-export async function actOnMessageAfterDelay (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
-    const jobGuid = event.data?.jobGuid as string | undefined;
+type ActOnMessageAfterDelayJobData = {
+    jobGuid: string;
+    action: string;
+};
+
+export async function actOnMessageAfterDelay (event: ScheduledJobEvent<ActOnMessageAfterDelayJobData>, context: TriggerContext) {
+    const jobGuid = event.data.jobGuid;
     if (await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
         console.warn(`Send message job already handled, quitting. jobGuid: ${jobGuid}`);
         return;
     }
 
-    if (!event.data?.action) {
-        console.log("Scheduler job's data not assigned");
-        return;
-    }
-
-    const actionVal = event.data.action as string;
-    const action = JSON.parse(actionVal) as ModmailAction;
+    const action = JSON.parse(event.data.action) as ModmailAction;
     await actOnRule(action, context);
 }
 
@@ -419,6 +461,20 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
     }
 }
 
+export interface CheckRuleOptions {
+    subject: string;
+    body: string;
+    username: string;
+    participant?: User;
+    userIsModerator?: boolean;
+    userIsAdmin?: boolean;
+    mostRecentOtherConversation?: Date;
+    messagesInConversation: MessageData[];
+    currentMessageId: string;
+    subPostKarma: number;
+    subCommentKarma: number;
+}
+
 /**
  * Checks if a rule matches the modmail contents and user/modlog context
  * @param context Reddit TriggerContext object
@@ -429,7 +485,7 @@ function logDebug (verboseLogsEnabled: boolean | undefined, reason: string, verb
  * @param participant A user object, or undefined if a shadowbanned/suspended user
  * @returns An object that describes if the rule matched, and if so provides extra context for the rule actions and how it matched
  */
-export async function checkRule (context: TriggerContext | undefined, subredditName: string, rule: ResponseRule, subject: string, body: string, username: string, participant?: User, userIsModerator?: boolean, userIsAdmin?: boolean): Promise<RuleMatchContext> {
+export async function checkRule (context: TriggerContext | undefined, rule: ResponseRule, opts: CheckRuleOptions): Promise<RuleMatchContext> {
     const result: RuleMatchContext = {
         ruleMatched: false,
         priority: rule.priority ?? 0,
@@ -445,22 +501,58 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         includeSignoff: rule.signoff ?? true,
     };
 
+    const subredditName = context?.subredditName ?? await context?.reddit.getCurrentSubredditName() ?? "";
+
     if (rule.rule_friendly_name) {
         logDebug(rule.verbose_logs, `Processing rule with name "${rule.rule_friendly_name}"`, result.verboseLogs);
     }
 
-    if (rule.moderators_exempt !== false && userIsModerator && !rule.author?.is_moderator) {
+    if (rule.moderators_exempt !== false && opts.userIsModerator && !rule.author?.is_moderator) {
         logDebug(rule.verbose_logs, "Rule exempts moderators, and user is a mod.", result.verboseLogs);
         return result;
     }
 
-    if (rule.admins_exempt !== false && userIsAdmin) {
+    if (rule.admins_exempt !== false && opts.userIsAdmin) {
         logDebug(rule.verbose_logs, "Rule exempts admins, and user is an admin.", result.verboseLogs);
         return result;
     }
 
+    if (rule.time_since_last_new_conversation !== undefined) {
+        if (!opts.mostRecentOtherConversation) {
+            logDebug(rule.verbose_logs, "No recent other conversation found, so rule fails", result.verboseLogs);
+            return result;
+        }
+
+        if (!meetsDateThreshold(opts.mostRecentOtherConversation, rule.time_since_last_new_conversation)) {
+            logDebug(rule.verbose_logs, "Time since last new conversation is too short, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Time since last new conversation is sufficient, so check passes.", result.verboseLogs);
+        }
+    }
+
+    if (rule.time_since_last_user_message !== undefined) {
+        if (opts.messagesInConversation.length === 0) {
+            logDebug(rule.verbose_logs, "No user messages in conversation, so rule fails", result.verboseLogs);
+            return result;
+        }
+
+        const mostRecentUserMessage = opts.messagesInConversation.filter(msg => msg.id !== opts.currentMessageId && msg.author?.name === opts.username).pop();
+        if (!mostRecentUserMessage?.date) {
+            logDebug(rule.verbose_logs, "No recent user message found, so rule fails", result.verboseLogs);
+            return result;
+        }
+
+        if (!meetsDateThreshold(new Date(mostRecentUserMessage.date), rule.time_since_last_user_message)) {
+            logDebug(rule.verbose_logs, "Time since last user message is too short, so rule fails", result.verboseLogs);
+            return result;
+        } else {
+            logDebug(rule.verbose_logs, "Time since last user message is sufficient, so check passes.", result.verboseLogs);
+        }
+    }
+
     if (rule.subject) {
-        result.subjectMatch = checkTextMatch(subject, rule.subject, rule.subject_options);
+        result.subjectMatch = checkTextMatch(opts.subject, rule.subject, rule.subject_options);
         if (!result.subjectMatch) {
             logDebug(rule.verbose_logs, "Subject does not match.", result.verboseLogs);
             return result;
@@ -470,7 +562,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule["~subject"]) {
-        if (!checkTextMatch(subject, rule["~subject"], rule["~subject_options"])) {
+        if (!checkTextMatch(opts.subject, rule["~subject"], rule["~subject_options"])) {
             logDebug(rule.verbose_logs, "Negated subject matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -479,7 +571,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.subject_shorter_than) {
-        if (subject.length < rule.subject_shorter_than) {
+        if (opts.subject.length < rule.subject_shorter_than) {
             logDebug(rule.verbose_logs, "Subject is shorter than specified length, so check passes.", result.verboseLogs);
         } else {
             logDebug(rule.verbose_logs, "Subject is too long, so rule fails", result.verboseLogs);
@@ -488,7 +580,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.subject_longer_than) {
-        if (subject.length > rule.subject_longer_than) {
+        if (opts.subject.length > rule.subject_longer_than) {
             logDebug(rule.verbose_logs, "Subject is longer than specified length, so check passes.", result.verboseLogs);
         } else {
             logDebug(rule.verbose_logs, "Subject is too short, so rule fails", result.verboseLogs);
@@ -497,7 +589,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.body) {
-        result.bodyMatch = checkTextMatch(body, rule.body, rule.body_options);
+        result.bodyMatch = checkTextMatch(opts.body, rule.body, rule.body_options);
         if (!result.bodyMatch) {
             logDebug(rule.verbose_logs, "Body does not match.", result.verboseLogs);
             return result;
@@ -507,7 +599,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule["~body"]) {
-        if (!checkTextMatch(body, rule["~body"], rule["~body_options"])) {
+        if (!checkTextMatch(opts.body, rule["~body"], rule["~body_options"])) {
             logDebug(rule.verbose_logs, "Negated body matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -516,7 +608,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.body_shorter_than) {
-        if (body.length < rule.body_shorter_than) {
+        if (opts.body.length < rule.body_shorter_than) {
             logDebug(rule.verbose_logs, "Body is shorter than specified length, so check passes.", result.verboseLogs);
         } else {
             logDebug(rule.verbose_logs, "Body is too long, so rule fails", result.verboseLogs);
@@ -525,7 +617,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.body_longer_than) {
-        if (body.length > rule.body_longer_than) {
+        if (opts.body.length > rule.body_longer_than) {
             logDebug(rule.verbose_logs, "Body is longer than specified length, so check passes.", result.verboseLogs);
         } else {
             logDebug(rule.verbose_logs, "Body is too short, so rule fails", result.verboseLogs);
@@ -534,8 +626,8 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.subjectandbody) {
-        result.subjectMatch = checkTextMatch(subject, rule.subjectandbody, rule.subjectandbody_options);
-        result.bodyMatch = checkTextMatch(body, rule.subjectandbody, rule.subjectandbody_options);
+        result.subjectMatch = checkTextMatch(opts.subject, rule.subjectandbody, rule.subjectandbody_options);
+        result.bodyMatch = checkTextMatch(opts.body, rule.subjectandbody, rule.subjectandbody_options);
         if (!result.subjectMatch && !result.bodyMatch) {
             logDebug(rule.verbose_logs, "subject+body does not match.", result.verboseLogs);
             return result;
@@ -545,7 +637,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule["~subjectandbody"]) {
-        if (!checkTextMatch(subject, rule["~subjectandbody"], rule["~subjectandbody_options"]) || !checkTextMatch(body, rule["~subjectandbody"], rule["~subjectandbody_options"])) {
+        if (!checkTextMatch(opts.subject, rule["~subjectandbody"], rule["~subjectandbody_options"]) || !checkTextMatch(opts.body, rule["~subjectandbody"], rule["~subjectandbody_options"])) {
             logDebug(rule.verbose_logs, "Negated subject+body matched, so rule fails", result.verboseLogs);
             return result;
         } else {
@@ -554,26 +646,47 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
     }
 
     if (rule.author) {
-        if (participant) {
+        if (opts.participant) {
             // Most checks need the user to be not shadowbanned.
             const thresholdChecks: boolean[] = [];
             if (rule.author.post_karma) {
-                const thresholdMatched = meetsNumericThreshold(participant.linkKarma, rule.author.post_karma);
+                const thresholdMatched = meetsNumericThreshold(opts.participant.linkKarma, rule.author.post_karma);
                 logDebug(rule.verbose_logs, `Post karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
                 thresholdChecks.push(thresholdMatched);
             }
+
             if (rule.author.comment_karma) {
-                const thresholdMatched = meetsNumericThreshold(participant.commentKarma, rule.author.comment_karma);
+                const thresholdMatched = meetsNumericThreshold(opts.participant.commentKarma, rule.author.comment_karma);
                 logDebug(rule.verbose_logs, `Comment karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
                 thresholdChecks.push(thresholdMatched);
             }
+
             if (rule.author.combined_karma) {
-                const thresholdMatched = meetsNumericThreshold(participant.linkKarma + participant.commentKarma, rule.author.combined_karma);
+                const thresholdMatched = meetsNumericThreshold(opts.participant.linkKarma + opts.participant.commentKarma, rule.author.combined_karma);
                 logDebug(rule.verbose_logs, `Combined karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
                 thresholdChecks.push(thresholdMatched);
             }
+
+            if (rule.author.post_subreddit_karma) {
+                const thresholdMatched = meetsNumericThreshold(opts.subPostKarma, rule.author.post_subreddit_karma);
+                logDebug(rule.verbose_logs, `Post subreddit karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
+                thresholdChecks.push(thresholdMatched);
+            }
+
+            if (rule.author.comment_subreddit_karma) {
+                const thresholdMatched = meetsNumericThreshold(opts.subCommentKarma, rule.author.comment_subreddit_karma);
+                logDebug(rule.verbose_logs, `Comment subreddit karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
+                thresholdChecks.push(thresholdMatched);
+            }
+
+            if (rule.author.combined_subreddit_karma) {
+                const thresholdMatched = meetsNumericThreshold(opts.subPostKarma + opts.subCommentKarma, rule.author.combined_subreddit_karma);
+                logDebug(rule.verbose_logs, `Combined subreddit karma threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
+                thresholdChecks.push(thresholdMatched);
+            }
+
             if (rule.author.account_age) {
-                const thresholdMatched = meetsDateThreshold(participant.createdAt, rule.author.account_age);
+                const thresholdMatched = meetsDateThreshold(opts.participant.createdAt, rule.author.account_age);
                 logDebug(rule.verbose_logs, `Account age threshold matched: ${JSON.stringify(thresholdMatched)}`, result.verboseLogs);
                 thresholdChecks.push(thresholdMatched);
             }
@@ -591,8 +704,17 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
                 logDebug(rule.verbose_logs, `Satisfy any threshold is set to ${JSON.stringify(rule.author.satisfy_any_threshold)} therefore threshold checks passed.`, result.verboseLogs);
             }
 
+            if (rule.author.is_nsfw !== undefined) {
+                if (rule.author.is_nsfw !== opts.participant.nsfw) {
+                    logDebug(rule.verbose_logs, "NSFW check failed, skipping rule.", result.verboseLogs);
+                    return result;
+                } else {
+                    logDebug(rule.verbose_logs, "NSFW check passed.", result.verboseLogs);
+                }
+            }
+
             if (context && rule.author.is_contributor !== undefined) {
-                const userIsContributor = await isContributor(context.reddit, subredditName, participant.username);
+                const userIsContributor = await isContributor(context.reddit, subredditName, opts.participant.username);
                 if (rule.author.is_contributor !== userIsContributor) {
                     logDebug(rule.verbose_logs, "Approved User check failed, skipping rule.", result.verboseLogs);
                     return result;
@@ -602,7 +724,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
 
             if (rule.author.is_moderator !== undefined) {
-                if (rule.author.is_moderator !== userIsModerator) {
+                if (rule.author.is_moderator !== opts.participant.isModerator) {
                     logDebug(rule.verbose_logs, "Moderator check failed, skipping rule.", result.verboseLogs);
                     return result;
                 } else {
@@ -611,7 +733,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
 
             if (rule.author.flair_text || rule.author.flair_css_class || rule.author["~flair_css_class"] || rule.author["~flair_text"]) {
-                const flair = await participant.getUserFlairBySubreddit(subredditName);
+                const flair = await opts.participant.getUserFlairBySubreddit(subredditName);
                 if (!flair) {
                     logDebug(rule.verbose_logs, "User does not have flair, but flair checks exist. Skipping rule.", result.verboseLogs);
                     return result;
@@ -657,7 +779,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
 
             if (context && rule.author.social_links) {
-                const socialLinks = await getUserSocialLinksCached(participant, context).then(x => x.map(link => link.outboundUrl));
+                const socialLinks = await getUserSocialLinksCached(opts.participant, context).then(x => x.map(link => link.outboundUrl));
                 if (!socialLinks.some(link => checkTextMatch(link, rule.author?.social_links, rule.author?.social_links_options))) {
                     logDebug(rule.verbose_logs, "Social links do not match.", result.verboseLogs);
                     return result;
@@ -667,7 +789,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
 
             if (context && rule.author["~social_links"]) {
-                const socialLinks = await getUserSocialLinksCached(participant, context).then(x => x.map(link => link.outboundUrl));
+                const socialLinks = await getUserSocialLinksCached(opts.participant, context).then(x => x.map(link => link.outboundUrl));
                 if (socialLinks.some(link => checkTextMatch(link, rule.author?.["~social_links"], rule.author?.["~social_links_options"]))) {
                     logDebug(rule.verbose_logs, "Negated social links matched, so rule fails", result.verboseLogs);
                     return result;
@@ -678,7 +800,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
 
         if (rule.author.name) {
-            if (!checkTextMatch(username, rule.author.name, rule.author.name_options)) {
+            if (!checkTextMatch(opts.username, rule.author.name, rule.author.name_options)) {
                 logDebug(rule.verbose_logs, "Author name doesn't match", result.verboseLogs);
                 return result;
             } else {
@@ -687,7 +809,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
 
         if (rule.author["~name"]) {
-            if (!checkTextMatch(username, rule.author["~name"], rule.author["~name_options"])) {
+            if (!checkTextMatch(opts.username, rule.author["~name"], rule.author["~name_options"])) {
                 logDebug(rule.verbose_logs, "Negated author name matched, so rule failed", result.verboseLogs);
                 return result;
             } else {
@@ -696,7 +818,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
 
         if (rule.author.is_shadowbanned !== undefined) {
-            if (rule.author.is_shadowbanned !== (participant === undefined)) {
+            if (rule.author.is_shadowbanned !== (opts.participant === undefined)) {
                 logDebug(rule.verbose_logs, "Shadowban check failed, skipping rule.", result.verboseLogs);
                 return result;
             } else {
@@ -704,14 +826,14 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
         }
 
-        if (!participant && (rule.author.account_age || rule.author.combined_karma || rule.author.comment_karma || rule.author.flair_css_class || rule.author.flair_text || rule.author.is_banned !== undefined || rule.author.is_contributor !== undefined)) {
+        if (!opts.participant && (rule.author.account_age || rule.author.combined_karma || rule.author.comment_karma || rule.author.flair_css_class || rule.author.flair_text || rule.author.is_banned !== undefined || rule.author.is_contributor !== undefined)) {
             // Participant is undefined, and uncheckable author checks exist.
             logDebug(rule.verbose_logs, "Author is shadowbanned and uncheckable author checks exist.", result.verboseLogs);
             return result;
         }
 
         if (context && rule.author.is_banned !== undefined) {
-            const userIsBanned = await isBanned(context.reddit, subredditName, username);
+            const userIsBanned = await isBanned(context.reddit, subredditName, opts.username);
             if (rule.author.is_banned !== userIsBanned) {
                 logDebug(rule.verbose_logs, "User banned check failed, skipping rule.", result.verboseLogs);
                 return result;
@@ -721,7 +843,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
         }
     }
 
-    if (context && rule.mod_action && participant) {
+    if (context && rule.mod_action && opts.participant) {
         let modLog: ModAction[] = [];
         if (!rule.mod_action.mod_action_type) {
             const entries = await context.reddit.getModerationLog({
@@ -742,7 +864,7 @@ export async function checkRule (context: TriggerContext | undefined, subredditN
             }
         }
 
-        modLog = modLog.filter(x => x.target?.author === participant.username);
+        modLog = modLog.filter(x => x.target?.author === opts.participant?.username);
 
         if (rule.mod_action.action_within) {
             modLog = modLog.filter(x => rule.mod_action?.action_within && meetsDateThreshold(x.createdAt, rule.mod_action.action_within, "<"));
@@ -1024,11 +1146,14 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
     return thingToMatch[index];
 }
 
-export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, userName: string, subredditName: string, settings: AppSettings): string {
+export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, username: string, subredditName: string, flairText: string, settings: AppSettings): string {
     let replyMessage = input;
 
-    replyMessage = replyMessage.replaceAll("{{author}}", markdownEscape(userName));
+    replyMessage = replyMessage.replaceAll("u/{{author}}", `u/${username}`);
+    replyMessage = replyMessage.replaceAll("{{author}}", markdownEscape(username));
+    replyMessage = replyMessage.replaceAll("r/{{subreddit}}", `r/${subredditName}`);
     replyMessage = replyMessage.replaceAll("{{subreddit}}", markdownEscape(subredditName));
+
     let language: Language | undefined;
     if (matchedRule.modActionDate || matchedRule.modActionTargetKind) {
         language = languageFromString(settings.locale[0]);
@@ -1049,6 +1174,8 @@ export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchCon
 
         replyMessage = replyMessage.replaceAll("{{mod_action_target_kind}}", targetKind);
     }
+
+    replyMessage = replyMessage.replaceAll("{{flair_text}}", markdownEscape(flairText));
 
     return applyMatchPlaceholders(replyMessage, matchedRule);
 }

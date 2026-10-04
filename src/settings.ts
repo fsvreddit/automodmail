@@ -1,4 +1,4 @@
-import { JSONObject, ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage, WikiPagePermissionLevel } from "@devvit/public-api";
+import { ScheduledJobEvent, SettingsFormField, SettingsFormFieldValidatorEvent, TriggerContext, User, WikiPage } from "@devvit/public-api";
 import { SchedulerJob } from "./constants.js";
 import { languageList } from "./i18n.js";
 import { parseRules } from "./config.js";
@@ -43,24 +43,19 @@ export const appSettings: SettingsFormField[] = [
         type: "paragraph",
         name: AppSettingName.Rules,
         label: "Enter YAML autoresponse rules",
-        helpText: "Please see documentation here for syntax: https://www.reddit.com/r/fsvapps/wiki/auto-modmail",
+        helpText: "Please see documentation here for syntax: https://github.com/fsvreddit/automodmail/blob/main/redditWiki.md",
         lineHeight: 10,
         onValidate: async (event, context) => {
             try {
                 parseRules(event.value);
 
-                const jobData: JSONObject = {
-                    jobGuid: crypto.randomUUID(),
-                };
-
-                if (context.userId) {
-                    jobData.userId = context.userId;
-                }
-
-                await context.scheduler.runJob({
+                await context.scheduler.runJob<SaveRulesToWikiPageJobData>({
                     name: SchedulerJob.SaveRulesToWikiPage,
                     runAt: addSeconds(new Date(), 5),
-                    data: jobData,
+                    data: {
+                        jobGuid: crypto.randomUUID(),
+                        userId: context.userId,
+                    },
                 });
             } catch (error) {
                 if (error instanceof Error) {
@@ -136,10 +131,14 @@ export const appSettings: SettingsFormField[] = [
     },
 ];
 
-export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject | undefined>, context: TriggerContext) {
-    const jobGuid = event.data?.jobGuid as string | undefined;
-    if (await hasTriggerBeenHandled(context.redis, `job:${jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
-        console.warn(`Save Rules job already handled. jobGuid: ${jobGuid}`);
+type SaveRulesToWikiPageJobData = {
+    jobGuid: string;
+    userId?: string;
+};
+
+export async function saveRulesToWikiPage (event: ScheduledJobEvent<SaveRulesToWikiPageJobData>, context: TriggerContext) {
+    if (await hasTriggerBeenHandled(context.redis, `job:${event.data.jobGuid}`, { expiration: addMinutes(new Date(), 5) })) {
+        console.warn(`Save Rules job already handled. jobGuid: ${event.data.jobGuid}`);
         return;
     }
 
@@ -165,11 +164,10 @@ export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject |
     }
 
     let reason: string | undefined;
-    const userId = event.data?.userId as string | undefined;
-    if (userId) {
+    if (event.data.userId) {
         let user: User | undefined;
         try {
-            user = await context.reddit.getUserById(userId);
+            user = await context.reddit.getUserById(event.data.userId);
         } catch {
             //
         }
@@ -193,7 +191,8 @@ export async function saveRulesToWikiPage (event: ScheduledJobEvent<JSONObject |
         await context.reddit.updateWikiPageSettings({
             listed: true,
             page: wikiPageName,
-            permLevel: WikiPagePermissionLevel.MODS_ONLY,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment
+            permLevel: 2, // MODS_ONLY
             subredditName: subreddit.name,
         });
     }

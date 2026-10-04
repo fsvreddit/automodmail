@@ -16,6 +16,8 @@ export interface ResponseRule {
     rule_friendly_name?: string;
     is_reply?: boolean;
     is_first_user_reply?: boolean;
+    time_since_last_new_conversation?: string;
+    time_since_last_user_message?: string;
     subject?: string[];
     subject_options?: SearchOption;
     "~subject"?: string[];
@@ -46,6 +48,9 @@ export interface ResponseRule {
         post_karma?: string;
         comment_karma?: string;
         combined_karma?: string;
+        post_subreddit_karma?: string;
+        comment_subreddit_karma?: string;
+        combined_subreddit_karma?: string;
         account_age?: string;
         satisfy_any_threshold?: boolean;
         flair_text?: string[];
@@ -56,6 +61,7 @@ export interface ResponseRule {
         flair_css_class_options?: SearchOption;
         "~flair_css_class"?: string[];
         "~flair_css_class_options"?: SearchOption;
+        is_nsfw?: boolean;
         is_participant?: boolean;
         is_contributor?: boolean;
         is_moderator?: boolean;
@@ -103,6 +109,8 @@ const schema: JSONSchemaType<ResponseRule[]> = {
             rule_friendly_name: { type: "string", minLength: 1, nullable: true },
             is_reply: { type: "boolean", nullable: true },
             is_first_user_reply: { type: "boolean", nullable: true },
+            time_since_last_new_conversation: { type: "string", nullable: true, pattern: dateComparatorPattern },
+            time_since_last_user_message: { type: "string", nullable: true, pattern: dateComparatorPattern },
             subject: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
             subject_options: {
                 type: "object",
@@ -225,6 +233,9 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                     post_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     comment_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     combined_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
+                    post_subreddit_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
+                    comment_subreddit_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
+                    combined_subreddit_karma: { type: "string", nullable: true, pattern: numericComparatorPattern },
                     account_age: { type: "string", nullable: true, pattern: dateComparatorPattern },
                     satisfy_any_threshold: { type: "boolean", nullable: true },
                     flair_text: { type: "array", items: { type: "string", minLength: 1 }, nullable: true },
@@ -271,6 +282,7 @@ const schema: JSONSchemaType<ResponseRule[]> = {
                         nullable: true,
                         additionalProperties: false,
                     },
+                    is_nsfw: { type: "boolean", nullable: true },
                     is_participant: { type: "boolean", nullable: true },
                     is_contributor: { type: "boolean", nullable: true },
                     is_moderator: { type: "boolean", nullable: true },

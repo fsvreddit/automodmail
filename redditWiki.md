@@ -65,6 +65,14 @@ Note: This app uses Javascript regex syntax, not Python. Avoid using double quot
 
 Additionally, you can specify case-sensitive searching (e.g. `body (includes-word, case-sensitive)`).
 
+## Recent modmail checks
+
+You can choose to apply rules based on other activity from the user in other conversations or the current conversation.
+
+`time_since_last_new_conversation` allows you to check the time period since the last conversation - e.g. you may wish to prevent users from creating multiple new modmails during a short period. Example: `time_since_last_new_conversation: '< 5 minutes'`
+
+`time_since_last_user_message` allows you to check the time period since the last message within the *same* conversation. For example, `time_since_last_user_message: '< 30 seconds'`.
+
 ## Account properties
 
 Account properties come under the `author` value, just like in AutoModerator. Two broad categories (threshold checks and other account properties) are supported, and both can be specified in the same rule.
@@ -75,9 +83,9 @@ Author checks apply to the user that the modmail thread is about, not the person
 
 ### Threshold checks
 
-The tool supports four threshold checks: `post_karma`, `comment_karma`, `combined_karma` and `account_age`. Due to limitations of the Community Apps platform, it is not possible to include subreddit karma checks.
+The tool supports several threshold checks: `post_karma`, `comment_karma`, `combined_karma`, `post_subreddit_karma`, `comment_subreddit_karma`, `combined_subreddit_karma` and `account_age`. Due to limitations of the Community Apps platform, it is not possible to include subreddit karma checks.
 
-`post_karma`, `comment_karma`, `combined_karma` can have numeric comparators specified, not just exact values. For example, the following are all valid:
+The karma threshold checks can have numeric comparators specified, not just exact values. For example, the following are all valid:
 
     author:
         post_karma: '< 100'
@@ -117,10 +125,13 @@ The app supports several other properties about users.
     author:
         flair_css_class (full-exact): 'bot'
 
-There are also five true/false checks on account properties that may be useful: `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
+There are also six true/false checks on account properties that may be useful: `is_nsfw`, `is_participant`, `is_contributor`, `is_moderator`, `is_shadowbanned` and `is_banned`. E.g.
 
     author:
-        is_banned: 'true'
+        is_banned: true
+
+    author:
+        is_nsfw: true
 
 The 'participant' is the user who the modmail thread is about. Most rules will never need to check this value, but it may be useful if you want to define rules that act on replies to previous modmails.
 
@@ -229,9 +240,11 @@ Properties supported for set_flair also includes `set_flair_template_id`. If ove
 
 The following placeholders are all supported:
 
-`{{author}}` - the username for the user writing in, without the leading /u/
+`{{author}}` - the username for the user writing in.
 
 `{{subreddit}}` - the subreddit the modmail was sent to.
+
+`{{flair_text}}` - the user's *current* flair text, if assigned.
 
 `{{mod_action_timespan_to_now}}` - a human readable timespan for the length of time elapsed since the detected mod action. [Example output formats can be seen here](https://date-fns.org/docs/formatDistanceToNow) and the language used can be configured in the app settings from a list of the most commonly used languages on Reddit (list based mostly on [this research](https://towardsdatascience.com/the-most-popular-languages-on-reddit-analyzed-with-snowflake-and-a-java-udtf-4e58c8ba473c)). If you would like to request another language, please send a message to /u/fsv.
 

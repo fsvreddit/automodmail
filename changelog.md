@@ -1,5 +1,26 @@
 ## Release History
 
+### v1.10.3
+
+- Added further mitigations against duplicate messages
+
+### v1.10.2
+
+- Added mitigations to stop duplicate messages if the Developer Platform is having issues
+
+### v1.10.1
+
+- Added a user ignore list setting to app configuration so that you can ignore any messages from certain users across all rules.
+
+### v1.10.0
+
+- Add feature to allow mod notes to be added by Modmail Automator rules
+- Add ability to check a user's social links
+- Add `was_deleted` check to mod action checks
+- When setting user flair text, the existing flair CSS class is respected
+- App can now act on outgoing messages triggered by itself (e.g. when approving users)
+- Update Devvit
+
 ### v1.9.6
 
 - Fixes a bug that prevented the {{mod_action_target_kind}} and {{mod_action_target_permalink}} placeholders from working correctly

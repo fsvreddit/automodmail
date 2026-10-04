@@ -43,7 +43,7 @@ export const appSettings: SettingsFormField[] = [
         type: "paragraph",
         name: AppSettingName.Rules,
         label: "Enter YAML autoresponse rules",
-        helpText: "Please see documentation here for syntax: https://www.reddit.com/r/fsvapps/wiki/auto-modmail",
+        helpText: "Please see documentation here for syntax: https://github.com/fsvreddit/automodmail/blob/main/redditWiki.md",
         lineHeight: 10,
         onValidate: async (event, context) => {
             try {

@@ -187,7 +187,12 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         }
     }
 
-    const subKarma = await context.reddit.getUserKarmaFromCurrentSubreddit(conversationResponse.conversation.participant.name);
+    let subKarma: { fromPosts?: number; fromComments?: number } | undefined;
+    try {
+        subKarma = await context.reddit.getUserKarmaFromCurrentSubreddit(conversationResponse.conversation.participant.name);
+    } catch {
+        console.log(`Failed to get subreddit karma for user: ${conversationResponse.conversation.participant.name}`);
+    }
 
     const ruleCheckOpts: CheckRuleOptions = {
         subject,
@@ -198,8 +203,8 @@ export async function onModmailReceiveEvent (event: ModMail, context: TriggerCon
         userIsAdmin: isAdmin,
         mostRecentOtherConversation,
         messagesInConversation,
-        subPostKarma: subKarma.fromPosts ?? 0,
-        subCommentKarma: subKarma.fromComments ?? 0,
+        subPostKarma: subKarma?.fromPosts ?? 0,
+        subCommentKarma: subKarma?.fromComments ?? 0,
         currentMessageId: currentMessage.id,
     };
 
@@ -1139,9 +1144,9 @@ function getMatchPlaceholderText (placeholder: string, result: RuleMatchContext)
 export function applyReplyPlaceholders (input: string, matchedRule: RuleMatchContext, username: string, subredditName: string, flairText: string, settings: AppSettings): string {
     let replyMessage = input;
 
-    replyMessage = replyMessage.replaceAll("u/{{author}}", markdownEscape(username));
+    replyMessage = replyMessage.replaceAll("u/{{author}}", `u/${username}`);
     replyMessage = replyMessage.replaceAll("{{author}}", markdownEscape(username));
-    replyMessage = replyMessage.replaceAll("r/{{subreddit}}", markdownEscape(subredditName));
+    replyMessage = replyMessage.replaceAll("r/{{subreddit}}", `r/${subredditName}`);
     replyMessage = replyMessage.replaceAll("{{subreddit}}", markdownEscape(subredditName));
 
     let language: Language | undefined;

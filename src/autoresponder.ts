@@ -724,7 +724,7 @@ export async function checkRule (context: TriggerContext | undefined, rule: Resp
             }
 
             if (rule.author.is_moderator !== undefined) {
-                if (rule.author.is_moderator !== opts.participant.isModerator) {
+                if (rule.author.is_moderator !== opts.userIsModerator) {
                     logDebug(rule.verbose_logs, "Moderator check failed, skipping rule.", result.verboseLogs);
                     return result;
                 } else {

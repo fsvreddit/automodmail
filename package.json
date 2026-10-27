@@ -9,9 +9,9 @@
     "test:unit": "vitest --run"
   },
   "dependencies": {
-    "@devvit/protos": "0.14.6",
-    "@devvit/public-api": "0.14.6",
-    "@fsvreddit/fsv-devvit-helpers": "^0.1.14",
+    "@devvit/protos": "0.15.1",
+    "@devvit/public-api": "0.15.1",
+    "@fsvreddit/fsv-devvit-helpers": "^0.1.15",
     "ajv": "^8.12.0",
     "date-fns": "^4.0.0",
     "devvit-helpers": "^0.11.0",
@@ -31,5 +31,11 @@
     "eslint": "^10.0.0",
     "typescript": "5.8.3",
     "vitest": "^5.0.0"
+  },
+  "overrides": {
+      "devvit-helpers": {
+          "@devvit/protos": "^0.15.0",
+          "@devvit/public-api": "^0.15.0"
+      }
   }
 }

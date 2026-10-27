@@ -8,6 +8,10 @@ Modmail Automator is open source. [You can find it on Github here](https://githu
 
 For older releases please see the [full change log](https://github.com/fsvreddit/automodmail/blob/main/changelog.md).
 
+### v1.11.1
+
+- Fix broken `is_moderator` check for the author
+
 ### v1.11.0
 
 - Add `is_nsfw` check within the `author` property
